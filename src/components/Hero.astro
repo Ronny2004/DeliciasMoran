@@ -136,10 +136,31 @@
 
     /* MEDIA QUERIES */
     @media (max-width: 768px) {
-        .hero h1 {
-            font-size: 2.5rem;
-        }
+@media (max-width: 768px) {
+    /* 1. Ajustamos el contenedor para que no se estire tanto */
+    .hero-content {
+        flex: 0 1 auto; /* Esto le dice: "no te estires, ocupa solo lo necesario" */
+        padding-top: 2rem; 
+        padding-bottom: 2rem;
+        justify-content: flex-start; /* Alinea los elementos hacia arriba en lugar de centrarlos brutalmente */
+    }
 
+    /* 2. Reducimos márgenes internos de los textos para compactar */
+    .hero h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem; /* Reducimos el margen inferior del título */
+    }
+
+    .hero p {
+        margin-bottom: 1.5rem; /* Reducimos el espacio después del párrafo */
+    }
+
+    /* 3. Ajuste de altura del hero para que no fuerce 100vh si el contenido es corto */
+    .hero {
+        min-height: auto;
+        padding-top: 80px;
+        padding-bottom: 40px;
+    }
         /* En móvil: apilamos, centramos y ajustamos al ancho del texto más largo */
         .hero-btns {
             flex-direction: column;
