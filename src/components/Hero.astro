@@ -1,7 +1,3 @@
----
-
----
-
 <section id="inicio" class="hero">
     <div class="hero-content container">
         <span class="badge">Desde el corazón de Quito</span>
@@ -69,12 +65,13 @@
         position: relative;
         z-index: 2;
         max-width: 700px;
-        animation: fadeInUp 1s ease 0.3s both;
         flex: 1;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: flex-start;
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
     }
 
     .badge {
@@ -85,7 +82,7 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1px;
-        margin-bottom: 1.5rem;
+        margin-bottom: 0.75rem;
         display: inline-block;
         animation: pulse 2s ease-in-out infinite;
     }
@@ -94,14 +91,17 @@
         font-size: 4rem;
         line-height: 1.1;
         margin-bottom: 1.5rem;
+        text-align: left;
     }
 
     .hero p {
         font-size: 1.2rem;
         margin-bottom: 2rem;
         opacity: 0.9;
+        text-align: left;
     }
 
+    /* Contenedor base de botones */
     .hero-btns {
         display: flex;
         gap: 1rem;
@@ -134,22 +134,33 @@
         animation: bounce 2s ease-in-out infinite;
     }
 
-    @media (max-width: 992px) {
+    /* MEDIA QUERIES */
+    @media (max-width: 768px) {
         .hero h1 {
-            font-size: 3rem;
+            font-size: 2.5rem;
+        }
+
+        /* En móvil: apilamos, centramos y ajustamos al ancho del texto más largo */
+        .hero-btns {
+            flex-direction: column;
+            width: fit-content; /* El contenedor mide lo que mide el botón más ancho */
+            margin: 0 auto; /* Centra el bloque en la pantalla */
+        }
+
+        .hero-btns .btn {
+            width: 100%; /* Los botones llenan el ancho del contenedor */
         }
     }
 
-    @media (max-width: 768px) {
-        .hero {
-            text-align: center;
-            justify-content: center;
-        }
+    @media (min-width: 769px) {
+        /* En escritorio: comportamiento original, ancho según contenido */
         .hero-btns {
-            flex-direction: column;
+            justify-content: flex-start;
+            width: auto;
         }
-        .hero h1 {
-            font-size: 2.5rem;
+
+        .hero-btns .btn {
+            width: auto; /* Tamaño natural basado en texto */
         }
     }
 </style>

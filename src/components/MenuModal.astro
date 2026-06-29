@@ -67,7 +67,12 @@ const drinks = [
         id: "colas",
         title: "Colas Varias",
         price: "$0.50",
-        description: "Medianas personales, siempre heladas.",
+        img: "/assets/hero.png", // Usamos una imagen genérica para bebidas
+        ingredients: [
+            "Medianas personales",
+            "Siempre heladas",
+            "Variedad de sabores",
+        ],
     },
 ];
 ---
@@ -80,14 +85,12 @@ const drinks = [
                 <img src="/assets/logo.jpg" alt="Logo" />
                 <h2>Nuestra Carta</h2>
             </div>
-            <p>
-                Sabor 100% Tradicional | Selecciona un Plato para ver los
-                detalles
-            </p>
+            <p>Sabor 100% Tradicional | Toca un plato para ver detalles</p>
         </div>
+
         <div class="modal-body">
             <div class="rustic-menu-section">
-                <h4>Platos de la Casa:</h4>
+                <h4>Platos de la Casa</h4>
                 <div class="rustic-menu-grid">
                     {
                         mainDishes.map((dish) => (
@@ -103,11 +106,9 @@ const drinks = [
                                     <div class="detail-info">
                                         <h5>Ingredientes:</h5>
                                         <ul>
-                                            {dish.ingredients.map(
-                                                (ingredient) => (
-                                                    <li>{ingredient}</li>
-                                                ),
-                                            )}
+                                            {dish.ingredients.map((i) => (
+                                                <li>{i}</li>
+                                            ))}
                                         </ul>
                                     </div>
                                 </div>
@@ -116,8 +117,9 @@ const drinks = [
                     }
                 </div>
             </div>
+
             <div class="rustic-menu-section" style="margin-top: 20px;">
-                <h4>Bebidas:</h4>
+                <h4>Bebidas</h4>
                 <div class="rustic-menu-grid">
                     {
                         drinks.map((drink) => (
@@ -128,17 +130,28 @@ const drinks = [
                                         {drink.price}
                                     </span>
                                 </div>
-                                {drink.description && (
-                                    <p style="font-size: 0.9rem; font-style: italic; opacity: 0.8; margin-top: 5px;">
-                                        {drink.description}
-                                    </p>
-                                )}
+                                <div class="item-details">
+                                    <div class="detail-img">
+                                        <img
+                                            src={drink.img}
+                                            alt={drink.title}
+                                        />
+                                    </div>
+                                    <div class="detail-info">
+                                        <ul>
+                                            {drink.ingredients.map((i) => (
+                                                <li>{i}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
                             </div>
                         ))
                     }
                 </div>
             </div>
         </div>
+
         <div class="modal-footer">
             <p>Precios incluyen impuestos</p>
         </div>
@@ -251,8 +264,8 @@ const drinks = [
         position: absolute;
         right: 20px;
         top: 20px;
-        color: #5d2e0a;
-        font-size: 2rem;
+        color: #ffffff;
+        font-size: 5rem;
         font-weight: bold;
         cursor: pointer;
         z-index: 10;
