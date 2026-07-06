@@ -1,8 +1,8 @@
-# Las Delicias de Morán 🥘📜
+# Las Delicias de Morán
 
 Sitio web premium de una sola página (One Page) para el emblemático restaurante tradicional ecuatoriano **"Las Delicias de Morán"**.
 
-## ✨ Características Principales
+## Características Principales
 
 - **📖 Menú de Pergamino Interactivo**: Una experiencia única donde la carta se despliega como un pergamino antiguo, con tipografía caligráfica elegante y detalles de platos desplegables.
 - **📱 Optimización Móvil Total**: Diseño fluido que se adapta perfectamente a cualquier dispositivo.
@@ -11,7 +11,7 @@ Sitio web premium de una sola página (One Page) para el emblemático restaurant
 - **🗺️ Ubicación en Vivo**: Mapa interactivo integrado para facilitar la llegada de los clientes.
 - **🔐 Portal de Empleados**: Acceso discreto para la gestión interna del restaurante.
 
-## 🛠️ Tecnologías Utilizadas
+## Tecnologías Utilizadas
 
 - **[Astro](https://astro.build/)**: Framework de alto rendimiento para sitios estáticos.
 - **HTML5 & CSS3**: Estructura semántica y animaciones suaves personalizadas.
