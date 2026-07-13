@@ -6,17 +6,33 @@ export const prerender = false;
 
 const genAI = new GoogleGenerativeAI(import.meta.env.GEMINI_API_KEY);
 
+function getEcuadorDateTime(): string {
+  const now = new Date();
+  const ecuadorTime = new Intl.DateTimeFormat('es-EC', {
+    timeZone: 'America/Guayaquil',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(now);
+  return ecuadorTime;
+}
+
 export const POST: APIRoute = async ({ request }) => {
   try {
     const { message, history } = await request.json();
 
     const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
 
+    const now = getEcuadorDateTime();
+
     const chat = model.startChat({
       history: [
         {
           role: 'user',
-          parts: [{ text: 'Actúa como el asistente virtual de este restaurante. Aquí está toda la información que necesitas:' }],
+          parts: [{ text: `Fecha y hora actual en Ecuador: ${now}. Usa esta información para interpretar "hoy", "mañana", "esta noche", etc. Aquí está la información completa del restaurante para que actúes como asistente virtual:` }],
         },
         {
           role: 'model',
