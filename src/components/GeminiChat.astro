@@ -268,8 +268,44 @@
     transition: background 0.2s;
   }
   .chat-send-btn:hover { background: #d43d0f; }
+  .chat-input-area input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #e8e0d0;
+  }
   .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .chat-send-btn svg { width: 18px; height: 18px; }
+
+  .session-closed {
+    padding: 16px;
+    text-align: center;
+    background: #fdf5e6;
+    border-top: 1px solid #e8dcc8;
+    flex-shrink: 0;
+  }
+  .session-closed p {
+    margin: 0 0 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: #8B4513;
+  }
+  .session-closed .new-chat-btn {
+    display: inline-block;
+    padding: 8px 20px;
+    border: 2px solid #e64a19;
+    border-radius: 24px;
+    background: transparent;
+    color: #e64a19;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .session-closed .new-chat-btn:hover {
+    background: #e64a19;
+    color: #fff;
+  }
 
   /* ── Tarjeta de reserva ── */
   .reservation-form {
@@ -368,13 +404,17 @@
       </div>
     </div>
 
-    <div class="chat-input-area">
+    <div class="chat-input-area" id="chat-input-area">
       <input type="text" id="chat-input" placeholder="Escribe tu mensaje aquí..." />
       <button class="chat-send-btn" id="chat-send-btn" aria-label="Enviar">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
+    </div>
+    <div class="session-closed" id="session-closed" style="display:none;">
+      <p>✅ Reserva confirmada. Sesión cerrada.</p>
+      <button class="new-chat-btn" id="new-chat-btn">💬 Nueva consulta</button>
     </div>
   </div>
 </div>
@@ -387,9 +427,13 @@
     const messages = document.getElementById('chat-messages');
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send-btn');
+    const inputArea = document.getElementById('chat-input-area');
+    const sessionClosed = document.getElementById('session-closed');
+    const newChatBtn = document.getElementById('new-chat-btn');
 
     let isOpen = false;
     let chatHistory = [];
+    let sessionClosedFlag = false;
 
     function toggle() {
       isOpen = !isOpen;
@@ -399,6 +443,34 @@
 
     function scrollToBottom() {
       messages.scrollTop = messages.scrollHeight;
+    }
+
+    function closeSession() {
+      sessionClosedFlag = true;
+      input.disabled = true;
+      sendBtn.disabled = true;
+      input.placeholder = 'Sesión cerrada';
+      inputArea.style.display = 'none';
+      sessionClosed.style.display = 'block';
+    }
+
+    function resetSession() {
+      sessionClosedFlag = false;
+      chatHistory = [];
+      input.disabled = false;
+      sendBtn.disabled = false;
+      input.value = '';
+      input.placeholder = 'Escribe tu mensaje aquí...';
+      inputArea.style.display = 'flex';
+      sessionClosed.style.display = 'none';
+      messages.innerHTML = `
+        <div class="message bot">
+          <div class="bot-card">
+            ¡Hola! Soy Vaco 🐮, el asistente de Las Delicias de Morán.<br>
+            ¿En que te puedo ayudar hoy?
+          </div>
+        </div>`;
+      input.focus();
     }
 
     function parseMarkdown(text) {
@@ -537,6 +609,7 @@
             btn.remove();
             addBotMessage('¡Reserva confirmada! Nos vemos pronto. 🐮🔥');
             chatHistory.push({ role: 'model', parts: [{ text: '¡Reserva confirmada! Nos vemos pronto.' }] });
+            closeSession();
           } else {
             throw new Error(result.error || 'Error al procesar');
           }
@@ -550,6 +623,7 @@
     }
 
     async function sendMessage() {
+      if (sessionClosedFlag) return;
       const text = input.value.trim();
       if (!text) return;
 
@@ -599,6 +673,7 @@
 
     toggleBtn.addEventListener('click', toggle);
     closeBtn.addEventListener('click', toggle);
+    newChatBtn.addEventListener('click', resetSession);
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
   })();
