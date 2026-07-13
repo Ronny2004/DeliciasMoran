@@ -1,0 +1,605 @@
+---
+// src/components/GeminiChat.astro
+---
+
+<style is:global>
+  .chat-toggle {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #e64a19;
+    border: 3px solid #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #fff;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .chat-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(230,74,25,0.4);
+  }
+  .chat-toggle svg {
+    width: 30px;
+    height: 30px;
+  }
+
+  .chat-window {
+    position: fixed;
+    bottom: 100px;
+    right: 24px;
+    z-index: 9998;
+    width: 380px;
+    max-width: calc(100vw - 48px);
+    height: 560px;
+    max-height: calc(100vh - 160px);
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform-origin: bottom right;
+    animation: chatSlideIn 0.3s ease-out;
+  }
+  .chat-window.hidden {
+    display: none;
+  }
+  @keyframes chatSlideIn {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .chat-header {
+    background: linear-gradient(135deg, #8B4513 0%, #e64a19 100%);
+    color: #fff;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .chat-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .chat-header-text h3 {
+    margin: 0;
+    font-family: 'Lora', serif;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .chat-header-text p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    opacity: 0.85;
+    font-family: 'Inter', sans-serif;
+  }
+  .chat-header-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    opacity: 0.8;
+    padding: 4px;
+    display: flex;
+  }
+  .chat-header-close:hover { opacity: 1; }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #fdf5e6;
+    min-height: 0;
+  }
+
+  .message {
+    max-width: 88%;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
+    animation: msgIn 0.25s ease-out;
+  }
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Mensaje del bot: tarjeta con estilo ── */
+  .message.bot {
+    align-self: flex-start;
+    background: #fff;
+    color: #2f4f4f;
+    border: 1px solid #e8dcc8;
+    border-bottom-left-radius: 4px;
+    padding: 0;
+    overflow: visible;
+    min-width: 0;
+  }
+  .message.bot .bot-card {
+    padding: 14px 16px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
+  }
+  .message.bot .bot-card p {
+    margin: 0 0 8px;
+  }
+  .message.bot .bot-card p:last-child {
+    margin-bottom: 0;
+  }
+  .message.bot .bot-card strong {
+    color: #8B4513;
+    font-weight: 700;
+  }
+  .message.bot .bot-card em {
+    color: #a0704a;
+    font-style: italic;
+  }
+  .message.bot .bot-card ul,
+  .message.bot .bot-card ol {
+    margin: 6px 0;
+    padding-left: 20px;
+  }
+  .message.bot .bot-card li {
+    margin: 4px 0;
+    position: relative;
+  }
+  .message.bot .bot-card li::marker {
+    color: #e64a19;
+  }
+  .message.bot .bot-card h1,
+  .message.bot .bot-card h2,
+  .message.bot .bot-card h3,
+  .message.bot .bot-card h4 {
+    margin: 10px 0 6px;
+    font-family: 'Lora', serif;
+    color: #8B4513;
+    font-size: 15px;
+    font-weight: 700;
+    border-bottom: 2px solid #f0e6d2;
+    padding-bottom: 4px;
+  }
+  .message.bot .bot-card hr {
+    border: none;
+    border-top: 1px solid #e8dcc8;
+    margin: 8px 0;
+  }
+  .message.bot .bot-card code {
+    background: #f5ede0;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #8B4513;
+  }
+
+  /* ── Mensaje del usuario ── */
+  .message.user {
+    align-self: flex-end;
+    background: #e64a19;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+    padding: 10px 14px;
+  }
+
+  /* ── Indicador de escribiendo ── */
+  .typing-indicator {
+    align-self: flex-start;
+    background: #fff;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid #e8dcc8;
+    border-bottom-left-radius: 4px;
+    display: flex;
+    gap: 4px;
+  }
+  .typing-indicator span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #8B4513;
+    animation: typingBounce 1.4s infinite ease-in-out;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  /* ── Input ── */
+  .chat-input-area {
+    padding: 12px 16px;
+    border-top: 1px solid #e8dcc8;
+    background: #fff;
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .chat-input-area input {
+    flex: 1;
+    border: 1px solid #d4c5a9;
+    border-radius: 24px;
+    padding: 10px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    outline: none;
+    background: #fdf5e6;
+    color: #2f4f4f;
+    transition: border-color 0.2s;
+  }
+  .chat-input-area input:focus { border-color: #e64a19; }
+  .chat-input-area input::placeholder { color: #a09080; }
+  .chat-send-btn {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: none;
+    background: #e64a19;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .chat-send-btn:hover { background: #d43d0f; }
+  .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .chat-send-btn svg { width: 18px; height: 18px; }
+
+  /* ── Tarjeta de reserva ── */
+  .reservation-form {
+    background: #fff;
+    border: 1px solid #e8dcc8;
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 4px;
+    align-self: flex-start;
+    max-width: 100%;
+  }
+  .reservation-form h4 {
+    margin: 0 0 10px;
+    font-family: 'Lora', serif;
+    color: #8B4513;
+    font-size: 14px;
+  }
+  .reservation-form p {
+    margin: 4px 0;
+    font-size: 13px;
+    color: #2f4f4f;
+    font-family: 'Inter', sans-serif;
+  }
+  .reservation-form strong { color: #8B4513; }
+  .reservation-form .confirm-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #e64a19;
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .reservation-form .confirm-btn:hover { background: #d43d0f; }
+  .reservation-form .confirm-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .reservation-form .success-msg {
+    color: #2e7d32;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 8px;
+    font-size: 14px;
+  }
+  .reservation-form .error-msg {
+    color: #c62828;
+    text-align: center;
+    margin-top: 8px;
+    font-size: 13px;
+  }
+
+  @media (max-width: 600px) {
+    .chat-window {
+      bottom: 0;
+      right: 0;
+      width: 100vw;
+      max-width: 100vw;
+      height: 100vh;
+      max-height: 100vh;
+      border-radius: 0;
+    }
+    .chat-toggle { bottom: 16px; right: 16px; }
+  }
+</style>
+
+<div id="vaco-chat-root">
+  <button class="chat-toggle" id="chat-toggle-btn" aria-label="Abrir chat">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+  </button>
+
+  <div class="chat-window hidden" id="chat-window">
+    <div class="chat-header">
+      <div class="chat-header-icon">🐮</div>
+      <div class="chat-header-text">
+        <h3>Vaco</h3>
+        <p>Asistente Virtual</p>
+      </div>
+      <button class="chat-header-close" id="chat-close-btn" aria-label="Cerrar chat">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="chat-messages" id="chat-messages">
+      <div class="message bot">
+        <div class="bot-card">
+          ¡Hola! Soy Vaco 🐮, el asistente de Las Delicias de Morán.<br>
+          ¿En que te puedo ayudar hoy?
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-area">
+      <input type="text" id="chat-input" placeholder="Escribe tu mensaje aquí..." />
+      <button class="chat-send-btn" id="chat-send-btn" aria-label="Enviar">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (() => {
+    const toggleBtn = document.getElementById('chat-toggle-btn');
+    const closeBtn = document.getElementById('chat-close-btn');
+    const chatWindow = document.getElementById('chat-window');
+    const messages = document.getElementById('chat-messages');
+    const input = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send-btn');
+
+    let isOpen = false;
+    let chatHistory = [];
+
+    function toggle() {
+      isOpen = !isOpen;
+      chatWindow.classList.toggle('hidden', !isOpen);
+      if (isOpen) { input.focus(); scrollToBottom(); }
+    }
+
+    function scrollToBottom() {
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function parseMarkdown(text) {
+      let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+      html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+      html = html.replace(/^---$/gm, '<hr>');
+      html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+      html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+
+      const lines = html.split('\n');
+      let result = [];
+      let inList = false;
+      let listType = '';
+
+      for (const line of lines) {
+        const ulMatch = line.match(/^[\-\*] (.+)/);
+        const olMatch = line.match(/^\d+\. (.+)/);
+
+        if (ulMatch) {
+          if (!inList || listType !== 'ul') {
+            if (inList) result.push(`</${listType}>`);
+            result.push('<ul>');
+            inList = true;
+            listType = 'ul';
+          }
+          result.push(`<li>${ulMatch[1]}</li>`);
+        } else if (olMatch) {
+          if (!inList || listType !== 'ol') {
+            if (inList) result.push(`</${listType}>`);
+            result.push('<ol>');
+            inList = true;
+            listType = 'ol';
+          }
+          result.push(`<li>${olMatch[1]}</li>`);
+        } else {
+          if (inList) {
+            result.push(`</${listType}>`);
+            inList = false;
+            listType = '';
+          }
+          if (line.trim() === '') {
+            result.push('<br>');
+          } else {
+            result.push(`<p>${line}</p>`);
+          }
+        }
+      }
+      if (inList) result.push(`</${listType}>`);
+
+      return result.join('');
+    }
+
+    function addBotMessage(html) {
+      const div = document.createElement('div');
+      div.className = 'message bot';
+      const card = document.createElement('div');
+      card.className = 'bot-card';
+      card.innerHTML = html;
+      div.appendChild(card);
+      messages.appendChild(div);
+      scrollToBottom();
+    }
+
+    function addUserMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'message user';
+      div.textContent = text;
+      messages.appendChild(div);
+      scrollToBottom();
+    }
+
+    function showTyping() {
+      const div = document.createElement('div');
+      div.className = 'typing-indicator';
+      div.id = 'typing-indicator';
+      div.innerHTML = '<span></span><span></span><span></span>';
+      messages.appendChild(div);
+      scrollToBottom();
+    }
+
+    function hideTyping() {
+      const el = document.getElementById('typing-indicator');
+      if (el) el.remove();
+    }
+
+    function extractReservationJson(text) {
+      const match = text.match(/\{[\s\S]*"_type"\s*:\s*"reservation"[\s\S]*\}/);
+      if (match) {
+        try { return JSON.parse(match[0]); } catch {}
+      }
+      return null;
+    }
+
+    function showReservationForm(data) {
+      const form = document.createElement('div');
+      form.className = 'reservation-form';
+      form.innerHTML = `
+        <h4>📋 Confirmar Reserva</h4>
+        <p><strong>Nombre:</strong> ${data.name}</p>
+        <p><strong>Teléfono:</strong> ${data.phone}</p>
+        <p><strong>Fecha:</strong> ${data.date}</p>
+        <p><strong>Hora:</strong> ${data.time}</p>
+        <p><strong>Personas:</strong> ${data.people}</p>
+        ${data.dishes ? `<p><strong>Platos:</strong> ${data.dishes}</p>` : ''}
+        ${data.notes ? `<p><strong>Notas:</strong> ${data.notes}</p>` : ''}
+        <button class="confirm-btn" id="confirm-reservation">✅ Confirmar Reserva</button>
+        <div id="reservation-status"></div>
+      `;
+      messages.appendChild(form);
+      scrollToBottom();
+
+      form.querySelector('#confirm-reservation').addEventListener('click', async () => {
+        const btn = form.querySelector('#confirm-reservation');
+        const status = form.querySelector('#reservation-status');
+        btn.disabled = true;
+        btn.textContent = 'Procesando...';
+
+        try {
+          const res = await fetch('/api/reservation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          const result = await res.json();
+
+          if (res.ok) {
+            status.className = 'success-msg';
+            status.textContent = '✅ ' + result.message;
+            btn.remove();
+            addBotMessage('¡Reserva confirmada! Nos vemos pronto. 🐮🔥');
+            chatHistory.push({ role: 'model', parts: [{ text: '¡Reserva confirmada! Nos vemos pronto.' }] });
+          } else {
+            throw new Error(result.error || 'Error al procesar');
+          }
+        } catch (e) {
+          status.className = 'error-msg';
+          status.textContent = '❌ Error: ' + e.message;
+          btn.disabled = false;
+          btn.textContent = '✅ Confirmar Reserva';
+        }
+      });
+    }
+
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = '';
+      addUserMessage(text);
+      chatHistory.push({ role: 'user', parts: [{ text }] });
+      showTyping();
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, history: chatHistory }),
+        });
+
+        hideTyping();
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          addBotMessage(err.error || 'Lo siento, tuve un problema. ¿Puedes intentar de nuevo?');
+          return;
+        }
+
+        const data = await res.json();
+        const reply = data.response;
+
+        const reservationData = extractReservationJson(reply);
+
+        if (reservationData && reservationData.data) {
+          const summary = reservationData.summary || 'Aquí tienes el resumen de tu reserva:';
+          addBotMessage(parseMarkdown(summary));
+          showReservationForm(reservationData.data);
+          chatHistory.push({ role: 'model', parts: [{ text: summary }] });
+        } else {
+          addBotMessage(parseMarkdown(reply));
+          chatHistory.push({ role: 'model', parts: [{ text: reply }] });
+        }
+
+        if (chatHistory.length > 20) {
+          chatHistory = chatHistory.slice(-20);
+        }
+      } catch (e) {
+        hideTyping();
+        addBotMessage('Lo siento, ocurrió un error de conexión. ¿Puedes intentar de nuevo?');
+      }
+    }
+
+    toggleBtn.addEventListener('click', toggle);
+    closeBtn.addEventListener('click', toggle);
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+  })();
+</script>

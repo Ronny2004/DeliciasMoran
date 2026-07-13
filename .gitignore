@@ -15,9 +15,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# environment variables
+# environment variables (CONTIENE CREDENCIALES - NUNCA SUBIR)
 .env
-.env.production
+.env.*
+!.env.example
 
 # OS metadata
 .DS_Store
