@@ -5,6 +5,7 @@ node_modules/
 dist/
 bin/
 obj/
+.vercel/
 
 # generated types
 .astro/
