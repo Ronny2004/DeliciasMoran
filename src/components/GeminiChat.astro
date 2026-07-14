@@ -21,9 +21,12 @@
     font-size: 28px;
     color: #fff;
     transition: transform 0.2s, box-shadow 0.2s;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
   }
   .chat-toggle:hover {
-    transform: scale(1.1);
+    transform: scale(1.1) translateZ(0);
     box-shadow: 0 6px 25px rgba(230,74,25,0.4);
   }
   .chat-toggle svg {
@@ -48,6 +51,9 @@
     overflow: hidden;
     transform-origin: bottom right;
     animation: chatSlideIn 0.3s ease-out;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: transform;
   }
   .chat-window.hidden {
     display: none;
@@ -360,21 +366,127 @@
     font-size: 13px;
   }
 
-  @media (max-width: 600px) {
+  .chat-label {
+    position: fixed;
+    bottom: 36px;
+    right: 96px;
+    z-index: 9997;
+    background: #fff;
+    color: #2f4f4f;
+    padding: 10px 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: opacity 0.3s, transform 0.3s;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chat-label::after {
+    content: '';
+    position: absolute;
+    right: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-left: 8px solid #fff;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+  }
+  .chat-label:hover {
+    transform: translateZ(0) scale(1.03);
+  }
+  .chat-label.hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateZ(0) translateX(10px);
+  }
+
+  @supports not (height: 100dvh) {
+    .chat-window { height: 100vh; max-height: 100vh; }
+  }
+  @media (max-width: 768px) {
     .chat-window {
       bottom: 0;
       right: 0;
-      width: 100vw;
-      max-width: 100vw;
-      height: 100vh;
-      max-height: 100vh;
+      left: 0;
+      top: 0;
+      width: 100%;
+      max-width: 100%;
+      height: 100dvh;
+      max-height: 100dvh;
       border-radius: 0;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+      padding-top: env(safe-area-inset-top, 0);
     }
-    .chat-toggle { bottom: 16px; right: 16px; }
+    .chat-window.keyboard-open {
+      height: calc(100dvh - var(--keyboard-height, 0px));
+      max-height: calc(100dvh - var(--keyboard-height, 0px));
+    }
+    .chat-open .chat-toggle,
+    .chat-open .chat-label {
+      display: none;
+    }
+    .chat-toggle {
+      bottom: calc(16px + env(safe-area-inset-bottom, 0));
+      right: calc(16px + env(safe-area-inset-right, 0));
+      width: 56px;
+      height: 56px;
+    }
+    .chat-toggle svg {
+      width: 26px;
+      height: 26px;
+    }
+    .chat-label {
+      bottom: 28px;
+      right: 84px;
+      font-size: 13px;
+      padding: 8px 14px;
+    }
+    .chat-header {
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top, 0));
+    }
+    .chat-header-text h3 { font-size: 15px; }
+    .chat-messages { padding: 12px; }
+    .message { font-size: 15px; max-width: 92%; }
+    .message.bot .bot-card { padding: 12px 14px; }
+    .message.user { padding: 10px 14px; }
+    .chat-input-area { padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0)); }
+    .chat-input-area input { font-size: 16px; padding: 12px 16px; }
+    .chat-send-btn { width: 44px; height: 44px; }
+    .reservation-form { padding: 12px; }
+    .reservation-form .confirm-btn { padding: 12px; font-size: 15px; }
+  }
+  @media (max-width: 480px) {
+    .chat-window { height: 100dvh; max-height: 100dvh; }
+    .chat-header { padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top, 0)); }
+    .chat-header-icon { width: 34px; height: 34px; font-size: 18px; }
+    .chat-messages { padding: 10px; gap: 8px; }
+    .message { font-size: 14px; max-width: 95%; }
+    .chat-input-area { padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0)); gap: 6px; }
+    .chat-input-area input { font-size: 16px; padding: 10px 14px; }
+    .chat-send-btn { width: 42px; height: 42px; }
+    .chat-label {
+      bottom: 22px;
+      right: 74px;
+      font-size: 12px;
+      padding: 6px 12px;
+    }
   }
 </style>
 
 <div id="vaco-chat-root">
+  <div class="chat-label" id="chat-label">
+    <span>🐮</span>
+    Pregúntale a Vaco
+  </div>
   <button class="chat-toggle" id="chat-toggle-btn" aria-label="Abrir chat">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -430,6 +542,7 @@
     const inputArea = document.getElementById('chat-input-area');
     const sessionClosed = document.getElementById('session-closed');
     const newChatBtn = document.getElementById('new-chat-btn');
+    const chatLabel = document.getElementById('chat-label');
 
     let isOpen = false;
     let chatHistory = [];
@@ -438,6 +551,8 @@
     function toggle() {
       isOpen = !isOpen;
       chatWindow.classList.toggle('hidden', !isOpen);
+      chatLabel.classList.toggle('hidden', isOpen);
+      document.getElementById('vaco-chat-root').classList.toggle('chat-open', isOpen);
       if (isOpen) { input.focus(); scrollToBottom(); }
     }
 
@@ -672,9 +787,30 @@
     }
 
     toggleBtn.addEventListener('click', toggle);
+    chatLabel.addEventListener('click', toggle);
     closeBtn.addEventListener('click', toggle);
     newChatBtn.addEventListener('click', resetSession);
     sendBtn.addEventListener('click', sendMessage);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+    if ('visualViewport' in window) {
+      let prevHeight = window.visualViewport.height;
+      window.visualViewport.addEventListener('resize', () => {
+        const diff = prevHeight - window.visualViewport.height;
+        if (Math.abs(diff) > 50 && window.innerWidth < 768) {
+          if (diff > 0) {
+            document.documentElement.style.setProperty('--keyboard-height', diff + 'px');
+            chatWindow.classList.add('keyboard-open');
+          } else {
+            chatWindow.classList.remove('keyboard-open');
+          }
+        }
+        prevHeight = window.visualViewport.height;
+      });
+    }
+
+    input.addEventListener('blur', () => {
+      chatWindow.classList.remove('keyboard-open');
+    });
   })();
 </script>
