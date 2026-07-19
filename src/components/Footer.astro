@@ -1,13 +1,12 @@
----
----
 <footer id="contacto">
     <div class="container footer-content">
         <div class="footer-brand">
             <img
-                src="/assets/logo.jpg"
+                src="/assets/logo.webp"
                 alt="Logo"
                 class="footer-logo"
-                style="height: 100px; margin-bottom: 20px;"
+                loading="lazy"
+                decoding="async"
             />
             <p>Lo mejor de nuestra tierra, directo a tu mesa.</p>
         </div>
@@ -20,7 +19,8 @@
                     <a
                         href="https://maps.app.goo.gl/cTLAaDydFwS3eFjL8"
                         target="_blank"
-                        style="color: var(--accent); text-decoration: underline;"
+                        rel="noopener noreferrer"
+                        class="footer-map-link"
                     >Ver en Google Maps</a>
                 </div>
             </div>
@@ -49,6 +49,7 @@
             <a
                 href="https://maps.app.goo.gl/cTLAaDydFwS3eFjL8"
                 target="_blank"
+                rel="noopener noreferrer"
                 class="btn btn-outline">Cómo Llegar</a>
         </div>
     </div>
@@ -65,8 +66,9 @@
             <a
                 href="https://deliciascrm.vercel.app"
                 target="_blank"
+                rel="noopener noreferrer"
             >
-                <i data-lucide="lock" style="width: 14px; height: 14px;"></i> Acceso Empleados
+                <i data-lucide="lock"></i> Acceso Empleados
             </a>
         </div>
     </div>
@@ -84,6 +86,16 @@ footer {
     grid-template-columns: 1fr 1fr 1fr;
     gap: 3rem;
     align-items: flex-start;
+}
+
+.footer-logo {
+    height: 100px;
+    margin-bottom: 20px;
+}
+
+.footer-map-link {
+    color: var(--accent);
+    text-decoration: underline;
 }
 
 .footer-info {
@@ -160,6 +172,11 @@ footer {
     align-items: center;
     justify-content: center;
     gap: 5px;
+}
+
+.employee-portal i {
+    width: 14px;
+    height: 14px;
 }
 
 @media (max-width: 992px) {

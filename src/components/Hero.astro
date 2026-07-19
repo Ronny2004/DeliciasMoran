@@ -23,8 +23,9 @@
     <div class="hero-image-overlay"></div>
     <div
         class="scroll-indicator"
-        onclick="document.getElementById('herencia').scrollIntoView({ behavior: 'smooth' });"
-        style="cursor: pointer;"
+        role="button"
+        tabindex="0"
+        aria-label="Ir a nuestra herencia"
     >
         <span>Desliza para descubrir</span>
         <i data-lucide="chevron-down"></i>
@@ -34,7 +35,7 @@
 <style>
     .hero {
         min-height: 100vh;
-        background: url("/assets/hero.png") no-repeat center center/cover;
+        background: url("/assets/hero.webp") no-repeat center center/cover;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -117,6 +118,7 @@
         color: var(--white);
         animation: fadeInUp 1.5s ease 1s both;
         margin-top: 2rem;
+        cursor: pointer;
     }
 
     .scroll-indicator span {
@@ -184,3 +186,18 @@
         }
     }
 </style>
+
+<script is:inline>
+    const scrollIndicator = document.querySelector('.scroll-indicator');
+    const scrollToHeritage = () => {
+        document.getElementById('herencia')?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    scrollIndicator?.addEventListener('click', scrollToHeritage);
+    scrollIndicator?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            scrollToHeritage();
+        }
+    });
+</script>

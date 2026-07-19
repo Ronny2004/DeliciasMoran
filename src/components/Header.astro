@@ -1,14 +1,12 @@
----
----
 <header>
     <nav class="container">
         <a href="#inicio" class="logo">
-            <img src="/assets/logo.jpg" alt="Las Delicias de Morán Logo" />
+            <img src="/assets/logo.webp" alt="Las Delicias de Morán Logo" />
             <span>Las Delicias de Moran</span>
         </a>
-        <div class="menu-toggle" id="mobile-menu">
+        <button class="menu-toggle" id="mobile-menu" type="button" aria-label="Abrir menú" aria-expanded="false">
             <i data-lucide="menu"></i>
-        </div>
+        </button>
         <ul class="nav-links">
             <li><a href="#inicio">Inicio</a></li>
             <li><a href="#ubicacion">Ubicación</a></li>
@@ -58,6 +56,8 @@ nav {
     cursor: pointer;
     color: var(--primary);
     z-index: 1001;
+    border: 0;
+    background: transparent;
 }
 .nav-links a {
     font-weight: 500;
@@ -133,7 +133,10 @@ nav {
             menuToggle.addEventListener("click", () => {
                 navLinks.classList.toggle("active");
                 const icon = menuToggle.querySelector("i");
-                if (navLinks.classList.contains("active")) {
+                const isOpen = navLinks.classList.contains("active");
+                menuToggle.setAttribute("aria-expanded", String(isOpen));
+                menuToggle.setAttribute("aria-label", isOpen ? "Cerrar menú" : "Abrir menú");
+                if (isOpen) {
                     icon.setAttribute("data-lucide", "x");
                 } else {
                     icon.setAttribute("data-lucide", "menu");
@@ -146,6 +149,8 @@ nav {
             links.forEach((link) => {
                 link.addEventListener("click", () => {
                     navLinks.classList.remove("active");
+                    menuToggle.setAttribute("aria-expanded", "false");
+                    menuToggle.setAttribute("aria-label", "Abrir menú");
                     const icon = menuToggle.querySelector("i");
                     icon.setAttribute("data-lucide", "menu");
                     if (typeof window.lucide !== "undefined") {

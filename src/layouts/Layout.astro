@@ -16,14 +16,20 @@ const { title, description } = Astro.props;
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>{title}</title>
 		<meta name="description" content={description} />
-		<link rel="icon" type="image/jpeg" href="/assets/logo.jpg" />
+		<link rel="icon" type="image/webp" href="/assets/logo.webp" />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link
 			href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Inter:wght@300;400;700&family=Great+Vibes&display=swap"
 			rel="stylesheet"
 		/>
-		<script src="https://unpkg.com/lucide@latest" defer></script>
+		<script is:inline src="https://unpkg.com/lucide@latest" defer></script>
+		<script
+			is:inline
+			src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+			async
+			defer
+		></script>
 	</head>
 	<body>
 		<slot />

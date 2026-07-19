@@ -1,10 +1,10 @@
 ---
+const menuImage = "/assets/hero.webp";
+
 const mainDishes = [
     {
-        id: "tripas",
         title: "Tripas Asadas",
         price: "$2.50",
-        img: "/assets/hero.png",
         ingredients: [
             "Tripa de res premium",
             "Marinado de ajo y comino",
@@ -13,10 +13,8 @@ const mainDishes = [
         ],
     },
     {
-        id: "cuero",
         title: "Papas con Cuero",
         price: "$2.50",
-        img: "/assets/hero.png",
         ingredients: [
             "Papas seleccionadas",
             "Cuero de chancho tierno",
@@ -25,10 +23,8 @@ const mainDishes = [
         ],
     },
     {
-        id: "librillo",
         title: "Papas con Librillo",
         price: "$2.50",
-        img: "/assets/hero.png",
         ingredients: [
             "Librillo de res tierno",
             "Papas harinosas",
@@ -37,10 +33,8 @@ const mainDishes = [
         ],
     },
     {
-        id: "caldo",
         title: "Caldo de 31",
         price: "$2.50",
-        img: "/assets/hero.png",
         ingredients: [
             "Menudencias de res",
             "Hierbas del huerto",
@@ -49,10 +43,8 @@ const mainDishes = [
         ],
     },
     {
-        id: "menudo",
         title: "Menudo de Chancho",
         price: "$2.50",
-        img: "/assets/hero.png",
         ingredients: [
             "Vísceras de chancho",
             "Mote pelado",
@@ -64,10 +56,8 @@ const mainDishes = [
 
 const drinks = [
     {
-        id: "colas",
         title: "Colas Varias",
         price: "$0.50",
-        img: "/assets/hero.png", // Usamos una imagen genérica para bebidas
         ingredients: [
             "Medianas personales",
             "Siempre heladas",
@@ -79,10 +69,10 @@ const drinks = [
 
 <div id="menuModal" class="modal">
     <div class="modal-content">
-        <span class="close-modal">&times;</span>
+        <button class="close-modal" type="button" aria-label="Cerrar menú">&times;</button>
         <div class="modal-header">
             <div class="header-main">
-                <img src="/assets/logo.jpg" alt="Logo" />
+                <img src="/assets/logo.webp" alt="Logo" />
                 <h2>Nuestra Carta</h2>
             </div>
             <p>Sabor 100% Tradicional</p>
@@ -95,14 +85,19 @@ const drinks = [
                 <div class="rustic-menu-grid">
                     {
                         mainDishes.map((dish) => (
-                            <div class="rustic-menu-item" data-dish={dish.id}>
+                            <div class="rustic-menu-item">
                                 <div class="item-header">
                                     <h3>{dish.title}</h3>
                                     <span class="item-price">{dish.price}</span>
                                 </div>
                                 <div class="item-details">
                                     <div class="detail-img">
-                                        <img src={dish.img} alt={dish.title} />
+                                        <img
+                                            src={menuImage}
+                                            alt={dish.title}
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
                                     </div>
                                     <div class="detail-info">
                                         <h5>Ingredientes:</h5>
@@ -119,12 +114,12 @@ const drinks = [
                 </div>
             </div>
 
-            <div class="rustic-menu-section" style="margin-top: 20px;">
+            <div class="rustic-menu-section drinks-section">
                 <h4>Bebidas</h4>
                 <div class="rustic-menu-grid">
                     {
                         drinks.map((drink) => (
-                            <div class="rustic-menu-item" data-dish={drink.id}>
+                            <div class="rustic-menu-item">
                                 <div class="item-header">
                                     <h3>{drink.title}</h3>
                                     <span class="item-price">
@@ -134,8 +129,10 @@ const drinks = [
                                 <div class="item-details">
                                     <div class="detail-img">
                                         <img
-                                            src={drink.img}
+                                            src={menuImage}
                                             alt={drink.title}
+                                            loading="lazy"
+                                            decoding="async"
                                         />
                                     </div>
                                     <div class="detail-info">
@@ -155,8 +152,6 @@ const drinks = [
 
         <div class="modal-footer">
             <p>Precios incluyen impuestos</p>
-            <p>--------------------------</p>
-            <p>.</p>
         </div>
     </div>
 </div>
@@ -186,7 +181,7 @@ const drinks = [
         box-sizing: border-box;
     }
     .modal-content {
-        background: url("/assets/parchment.png") no-repeat center center;
+        background: url("/assets/parchment.webp") no-repeat center center;
         background-size: 100% 100%;
         margin: 20px auto;
         padding: 120px 100px 140px 100px;
@@ -262,6 +257,9 @@ const drinks = [
         cursor: pointer;
         z-index: 10;
         transition: var(--transition);
+        background: none;
+        border: 0;
+        line-height: 1;
     }
 
     .close-modal:hover {
@@ -286,6 +284,10 @@ const drinks = [
 
     .rustic-menu-section:last-of-type {
         margin-bottom: 0;
+    }
+
+    .drinks-section {
+        margin-top: 20px;
     }
 
     .rustic-menu-item:last-child {
@@ -416,46 +418,52 @@ const drinks = [
     document.addEventListener("DOMContentLoaded", () => {
         const modal = document.getElementById("menuModal");
         const btn = document.querySelector(".btn-open-modal");
-        const span = document.querySelector(".close-modal");
+        const closeButton = document.querySelector(".close-modal");
+
+        const closeModal = () => {
+            if (!modal) return;
+            modal.classList.remove("active");
+            document.body.style.overflow = "";
+        };
 
         if (btn && modal) {
-            btn.onclick = function () {
+            btn.addEventListener("click", () => {
                 modal.classList.add("active");
                 document.body.style.overflow = "hidden";
-            };
+            });
         }
 
-        if (span && modal) {
-            span.onclick = function () {
-                modal.classList.remove("active");
-                document.body.style.overflow = "auto";
-            };
+        if (closeButton) {
+            closeButton.addEventListener("click", closeModal);
         }
 
-        window.onclick = function (event) {
-            if (modal && event.target == modal) {
-                modal.classList.remove("active");
-                document.body.style.overflow = "auto";
+        modal?.addEventListener("click", (event) => {
+            if (event.target === modal) {
+                closeModal();
             }
-        };
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && modal?.classList.contains("active")) {
+                closeModal();
+            }
+        });
 
         const menuItems = document.querySelectorAll(".rustic-menu-item");
         menuItems.forEach((item) => {
-            item.onclick = function () {
-                const details = this.querySelector(".item-details");
+            item.addEventListener("click", () => {
+                const details = item.querySelector(".item-details");
                 if (!details) return;
                 const isActive = details.classList.contains("active");
 
                 document.querySelectorAll(".item-details").forEach((d) => {
                     d.classList.remove("active");
-                    d.style.display = "none";
                 });
 
                 if (!isActive) {
                     details.classList.add("active");
-                    details.style.display = "flex";
                 }
-            };
+            });
         });
     });
 </script>

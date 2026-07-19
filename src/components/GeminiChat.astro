@@ -1,5 +1,6 @@
 ---
 // src/components/GeminiChat.astro
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
 ---
 
 <style is:global>
@@ -101,10 +102,23 @@
     color: #fff;
     cursor: pointer;
     opacity: 0.8;
-    padding: 4px;
+    padding: 0;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
     display: flex;
   }
   .chat-header-close:hover { opacity: 1; }
+  .chat-header-close:focus-visible,
+  .chat-toggle:focus-visible,
+  .chat-send-btn:focus-visible,
+  .quick-action:focus-visible {
+    outline: 3px solid rgba(255,255,255,0.9);
+    outline-offset: 2px;
+  }
 
   .chat-messages {
     flex: 1;
@@ -245,7 +259,29 @@
     gap: 8px;
     flex-shrink: 0;
   }
-  .chat-input-area input {
+  .chat-input-area[hidden],
+  .session-closed[hidden] {
+    display: none;
+  }
+  .turnstile-container {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .chat-security-note {
+    margin: 0;
+    padding: 0 12px 6px;
+    background: #fff;
+    color: #8a7b6b;
+    text-align: center;
+    font: 10px/1.3 'Inter', sans-serif;
+  }
+  .chat-security-note a {
+    color: inherit;
+    text-decoration: underline;
+  }
+  .chat-input-area textarea {
     flex: 1;
     border: 1px solid #d4c5a9;
     border-radius: 24px;
@@ -256,9 +292,14 @@
     background: #fdf5e6;
     color: #2f4f4f;
     transition: border-color 0.2s;
+    resize: none;
+    min-height: 42px;
+    max-height: 104px;
+    line-height: 1.35;
+    overflow-y: auto;
   }
-  .chat-input-area input:focus { border-color: #e64a19; }
-  .chat-input-area input::placeholder { color: #a09080; }
+  .chat-input-area textarea:focus { border-color: #e64a19; }
+  .chat-input-area textarea::placeholder { color: #a09080; }
   .chat-send-btn {
     width: 42px;
     height: 42px;
@@ -274,7 +315,7 @@
     transition: background 0.2s;
   }
   .chat-send-btn:hover { background: #d43d0f; }
-  .chat-input-area input:disabled {
+  .chat-input-area textarea:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     background: #e8e0d0;
@@ -408,26 +449,62 @@
     transform: translateZ(0) translateX(10px);
   }
 
+  .chat-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9997;
+    background: rgba(35, 22, 12, 0.48);
+    backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  .quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+    align-self: flex-start;
+    max-width: 100%;
+  }
+
+  .quick-action {
+    min-height: 40px;
+    padding: 9px 13px;
+    border: 1px solid #e6c9b8;
+    border-radius: 999px;
+    background: #fff;
+    color: #8B4513;
+    font: 700 13px 'Inter', sans-serif;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(93, 46, 10, 0.06);
+  }
+
+  .quick-action:hover {
+    border-color: #e64a19;
+    background: #fff8f3;
+  }
+
   @supports not (height: 100dvh) {
     .chat-window { height: 100vh; max-height: 100vh; }
   }
   @media (max-width: 768px) {
+    .chat-open .chat-backdrop {
+      display: block;
+      opacity: 1;
+    }
     .chat-window {
       bottom: 0;
       right: 0;
       left: 0;
-      top: 0;
+      top: auto;
       width: 100%;
       max-width: 100%;
-      height: 100dvh;
-      max-height: 100dvh;
-      border-radius: 0;
-      padding-bottom: env(safe-area-inset-bottom, 0);
-      padding-top: env(safe-area-inset-top, 0);
-    }
-    .chat-window.keyboard-open {
-      height: calc(100dvh - var(--keyboard-height, 0px));
-      max-height: calc(100dvh - var(--keyboard-height, 0px));
+      height: 92dvh;
+      max-height: 92dvh;
+      border-radius: 22px 22px 0 0;
+      animation: mobileChatIn 0.3s ease-out;
     }
     .chat-open .chat-toggle,
     .chat-open .chat-label {
@@ -451,27 +528,52 @@
     }
     .chat-header {
       padding: 12px 16px;
-      padding-top: calc(12px + env(safe-area-inset-top, 0));
+      position: relative;
+    }
+    .chat-header::before {
+      content: '';
+      position: absolute;
+      width: 42px;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.55);
+      top: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .chat-header-text p::before {
+      content: '';
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      margin-right: 5px;
+      border-radius: 50%;
+      background: #7ee081;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.18);
     }
     .chat-header-text h3 { font-size: 15px; }
     .chat-messages { padding: 12px; }
-    .message { font-size: 15px; max-width: 92%; }
+    .message { font-size: 15px; max-width: 90%; }
+    .message.user { max-width: 82%; }
     .message.bot .bot-card { padding: 12px 14px; }
     .message.user { padding: 10px 14px; }
     .chat-input-area { padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0)); }
-    .chat-input-area input { font-size: 16px; padding: 12px 16px; }
+    .chat-input-area textarea { font-size: 16px; padding: 11px 16px; }
     .chat-send-btn { width: 44px; height: 44px; }
     .reservation-form { padding: 12px; }
     .reservation-form .confirm-btn { padding: 12px; font-size: 15px; }
   }
   @media (max-width: 480px) {
     .chat-window { height: 100dvh; max-height: 100dvh; }
-    .chat-header { padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top, 0)); }
+    .chat-window { border-radius: 0; }
+    .chat-header { padding: calc(10px + env(safe-area-inset-top, 0)) 12px 10px; }
+    .chat-header::before { display: none; }
     .chat-header-icon { width: 34px; height: 34px; font-size: 18px; }
     .chat-messages { padding: 10px; gap: 8px; }
-    .message { font-size: 14px; max-width: 95%; }
+    .message { font-size: 14px; max-width: 90%; }
+    .message.user { max-width: 82%; }
     .chat-input-area { padding: 8px 10px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0)); gap: 6px; }
-    .chat-input-area input { font-size: 16px; padding: 10px 14px; }
+    .chat-input-area textarea { font-size: 16px; padding: 10px 14px; }
     .chat-send-btn { width: 42px; height: 42px; }
     .chat-label {
       bottom: 22px;
@@ -480,9 +582,20 @@
       padding: 6px 12px;
     }
   }
+  @keyframes mobileChatIn {
+    from { opacity: 0; transform: translateY(32px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 </style>
 
 <div id="vaco-chat-root">
+  <div
+    class="turnstile-container"
+    id="turnstile-container"
+    data-sitekey={turnstileSiteKey}
+    aria-hidden="true"
+  ></div>
+  <div class="chat-backdrop" id="chat-backdrop"></div>
   <div class="chat-label" id="chat-label">
     <span>🐮</span>
     Pregúntale a Vaco
@@ -498,7 +611,7 @@
       <div class="chat-header-icon">🐮</div>
       <div class="chat-header-text">
         <h3>Vaco</h3>
-        <p>Asistente Virtual</p>
+        <p>Menú, horarios y reservas</p>
       </div>
       <button class="chat-header-close" id="chat-close-btn" aria-label="Cerrar chat">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -511,27 +624,38 @@
       <div class="message bot">
         <div class="bot-card">
           ¡Hola! Soy Vaco 🐮, el asistente de Las Delicias de Morán.<br>
-          ¿En que te puedo ayudar hoy?
+          ¿En qué te puedo ayudar hoy?
         </div>
+      </div>
+      <div class="quick-actions" id="quick-actions" aria-label="Consultas rápidas">
+        <button class="quick-action" type="button" data-action="menu" data-message="Quiero ver el menú">🍽️ Ver menú</button>
+        <button class="quick-action" type="button" data-action="schedule" data-message="¿Cuál es el horario del restaurante?">🕒 Horarios</button>
+        <button class="quick-action" type="button" data-action="reservation" data-message="Quiero hacer una reserva">📅 Hacer una reserva</button>
       </div>
     </div>
 
     <div class="chat-input-area" id="chat-input-area">
-      <input type="text" id="chat-input" placeholder="Escribe tu mensaje aquí..." />
+      <textarea id="chat-input" rows="1" maxlength="500" placeholder="Escribe un mensaje..." aria-label="Mensaje para Vaco"></textarea>
       <button class="chat-send-btn" id="chat-send-btn" aria-label="Enviar">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
     </div>
-    <div class="session-closed" id="session-closed" style="display:none;">
+    <p class="chat-security-note">
+      Protegido por Cloudflare Turnstile:
+      <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Privacidad</a>
+      y
+      <a href="https://www.cloudflare.com/website-terms/" target="_blank" rel="noopener noreferrer">Términos</a>.
+    </p>
+    <div class="session-closed" id="session-closed" hidden>
       <p>✅ Reserva confirmada. Sesión cerrada.</p>
       <button class="new-chat-btn" id="new-chat-btn">💬 Nueva consulta</button>
     </div>
   </div>
 </div>
 
-<script>
+<script is:inline>
   (() => {
     const toggleBtn = document.getElementById('chat-toggle-btn');
     const closeBtn = document.getElementById('chat-close-btn');
@@ -543,17 +667,34 @@
     const sessionClosed = document.getElementById('session-closed');
     const newChatBtn = document.getElementById('new-chat-btn');
     const chatLabel = document.getElementById('chat-label');
+    const backdrop = document.getElementById('chat-backdrop');
+    const turnstileContainer = document.getElementById('turnstile-container');
+    const QUICK_ACTIONS = [
+      { id: 'menu', label: '🍽️ Ver menú', message: 'Quiero ver el menú' },
+      { id: 'schedule', label: '🕒 Horarios', message: '¿Cuál es el horario del restaurante?' },
+      { id: 'reservation', label: '📅 Hacer una reserva', message: 'Quiero hacer una reserva' },
+    ];
 
     let isOpen = false;
     let chatHistory = [];
     let sessionClosedFlag = false;
+    let selectedQuickActions = new Set();
+    let turnstileWidgetId = null;
+    let turnstileResolve = null;
+    let turnstileReject = null;
+    let turnstileTimeout = null;
+    let isSending = false;
 
     function toggle() {
       isOpen = !isOpen;
       chatWindow.classList.toggle('hidden', !isOpen);
       chatLabel.classList.toggle('hidden', isOpen);
       document.getElementById('vaco-chat-root').classList.toggle('chat-open', isOpen);
-      if (isOpen) { input.focus(); scrollToBottom(); }
+      document.body.style.overflow = isOpen && window.innerWidth <= 768 ? 'hidden' : '';
+      if (isOpen) {
+        if (window.matchMedia('(min-width: 769px)').matches) input.focus();
+        scrollToBottom();
+      }
     }
 
     function scrollToBottom() {
@@ -562,30 +703,147 @@
 
     function closeSession() {
       sessionClosedFlag = true;
+      messages.querySelector('.quick-actions')?.remove();
       input.disabled = true;
       sendBtn.disabled = true;
       input.placeholder = 'Sesión cerrada';
-      inputArea.style.display = 'none';
-      sessionClosed.style.display = 'block';
+      inputArea.hidden = true;
+      sessionClosed.hidden = false;
     }
 
     function resetSession() {
       sessionClosedFlag = false;
       chatHistory = [];
+      selectedQuickActions = new Set();
       input.disabled = false;
       sendBtn.disabled = false;
       input.value = '';
+      resizeInput();
       input.placeholder = 'Escribe tu mensaje aquí...';
-      inputArea.style.display = 'flex';
-      sessionClosed.style.display = 'none';
+      inputArea.hidden = false;
+      sessionClosed.hidden = true;
       messages.innerHTML = `
         <div class="message bot">
           <div class="bot-card">
             ¡Hola! Soy Vaco 🐮, el asistente de Las Delicias de Morán.<br>
-            ¿En que te puedo ayudar hoy?
+            ¿En qué te puedo ayudar hoy?
           </div>
         </div>`;
+      renderRemainingQuickActions();
       input.focus();
+    }
+
+    function resizeInput() {
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(input.scrollHeight, 104)}px`;
+    }
+
+    function waitForTurnstile() {
+      return new Promise((resolve, reject) => {
+        if (window.turnstile) {
+          resolve(window.turnstile);
+          return;
+        }
+
+        const startedAt = Date.now();
+        const timer = window.setInterval(() => {
+          if (window.turnstile) {
+            window.clearInterval(timer);
+            resolve(window.turnstile);
+          } else if (Date.now() - startedAt > 8000) {
+            window.clearInterval(timer);
+            reject(new Error('No se pudo cargar la protección antispam.'));
+          }
+        }, 100);
+      });
+    }
+
+    async function getTurnstileToken() {
+      const sitekey = turnstileContainer.dataset.sitekey;
+      if (!sitekey) return '';
+
+      const turnstile = await waitForTurnstile();
+      return new Promise((resolve, reject) => {
+        if (turnstileResolve) {
+          reject(new Error('Ya hay una verificación antispam en curso.'));
+          return;
+        }
+
+        turnstileResolve = resolve;
+        turnstileReject = reject;
+        turnstileTimeout = window.setTimeout(() => {
+          turnstileReject?.(new Error('La verificación antispam tardó demasiado.'));
+          turnstileResolve = null;
+          turnstileReject = null;
+        }, 10_000);
+
+        const finishVerification = (callback, value) => {
+          if (turnstileTimeout) window.clearTimeout(turnstileTimeout);
+          callback?.(value);
+          turnstileResolve = null;
+          turnstileReject = null;
+          turnstileTimeout = null;
+        };
+
+        const options = {
+          sitekey,
+          size: 'invisible',
+          execution: 'execute',
+          appearance: 'interaction-only',
+          action: 'vaco_request',
+          callback: (token) => finishVerification(turnstileResolve, token),
+          'error-callback': () => finishVerification(
+            turnstileReject,
+            new Error('La verificación antispam falló.'),
+          ),
+          'expired-callback': () => finishVerification(
+            turnstileReject,
+            new Error('La verificación antispam expiró.'),
+          ),
+        };
+
+        if (turnstileWidgetId === null) {
+          turnstileWidgetId = turnstile.render(turnstileContainer, options);
+        } else {
+          turnstile.reset(turnstileWidgetId);
+        }
+        turnstile.execute(turnstileWidgetId);
+      });
+    }
+
+    function bindQuickActions() {
+      messages.querySelectorAll('.quick-action').forEach((button) => {
+        button.addEventListener('click', () => {
+          selectedQuickActions.add(button.dataset.action);
+          input.value = button.dataset.message || '';
+          resizeInput();
+          sendMessage();
+        });
+      });
+    }
+
+    function renderRemainingQuickActions() {
+      messages.querySelector('.quick-actions')?.remove();
+
+      const remainingActions = QUICK_ACTIONS.filter(
+        (action) => !selectedQuickActions.has(action.id)
+      );
+      if (!remainingActions.length || sessionClosedFlag) return;
+
+      const container = document.createElement('div');
+      container.className = 'quick-actions';
+      container.setAttribute('aria-label', 'Consultas rápidas');
+      container.innerHTML = remainingActions.map((action) => `
+        <button
+          class="quick-action"
+          type="button"
+          data-action="${action.id}"
+          data-message="${action.message}"
+        >${action.label}</button>
+      `).join('');
+      messages.appendChild(container);
+      bindQuickActions();
+      scrollToBottom();
     }
 
     function parseMarkdown(text) {
@@ -687,17 +945,24 @@
     }
 
     function showReservationForm(data) {
+      const escapeHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
       const form = document.createElement('div');
       form.className = 'reservation-form';
       form.innerHTML = `
         <h4>📋 Confirmar Reserva</h4>
-        <p><strong>Nombre:</strong> ${data.name}</p>
-        <p><strong>Teléfono:</strong> ${data.phone}</p>
-        <p><strong>Fecha:</strong> ${data.date}</p>
-        <p><strong>Hora:</strong> ${data.time}</p>
-        <p><strong>Personas:</strong> ${data.people}</p>
-        ${data.dishes ? `<p><strong>Platos:</strong> ${data.dishes}</p>` : ''}
-        ${data.notes ? `<p><strong>Notas:</strong> ${data.notes}</p>` : ''}
+        <p><strong>Nombre:</strong> ${escapeHtml(data.name)}</p>
+        <p><strong>Teléfono:</strong> ${escapeHtml(data.phone)}</p>
+        <p><strong>Fecha:</strong> ${escapeHtml(data.date)}</p>
+        <p><strong>Hora:</strong> ${escapeHtml(data.time)}</p>
+        <p><strong>Personas:</strong> ${escapeHtml(data.people)}</p>
+        ${data.dishes ? `<p><strong>Platos:</strong> ${escapeHtml(data.dishes)}</p>` : ''}
+        ${data.notes ? `<p><strong>Notas:</strong> ${escapeHtml(data.notes)}</p>` : ''}
         <button class="confirm-btn" id="confirm-reservation">✅ Confirmar Reserva</button>
         <div id="reservation-status"></div>
       `;
@@ -711,10 +976,11 @@
         btn.textContent = 'Procesando...';
 
         try {
+          const turnstileToken = await getTurnstileToken();
           const res = await fetch('/api/reservation', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
+            body: JSON.stringify({ ...data, turnstileToken }),
           });
           const result = await res.json();
 
@@ -738,20 +1004,31 @@
     }
 
     async function sendMessage() {
-      if (sessionClosedFlag) return;
+      if (sessionClosedFlag || isSending) return;
       const text = input.value.trim();
       if (!text) return;
 
+      isSending = true;
+      input.disabled = true;
+      sendBtn.disabled = true;
+      const historyBeforeMessage = [...chatHistory];
       input.value = '';
+      resizeInput();
       addUserMessage(text);
       chatHistory.push({ role: 'user', parts: [{ text }] });
+      messages.querySelector('.quick-actions')?.remove();
       showTyping();
 
       try {
+        const turnstileToken = await getTurnstileToken();
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, history: chatHistory }),
+          body: JSON.stringify({
+            message: text,
+            history: historyBeforeMessage,
+            turnstileToken,
+          }),
         });
 
         hideTyping();
@@ -759,6 +1036,7 @@
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           addBotMessage(err.error || 'Lo siento, tuve un problema. ¿Puedes intentar de nuevo?');
+          renderRemainingQuickActions();
           return;
         }
 
@@ -776,41 +1054,37 @@
           addBotMessage(parseMarkdown(reply));
           chatHistory.push({ role: 'model', parts: [{ text: reply }] });
         }
+        renderRemainingQuickActions();
 
         if (chatHistory.length > 20) {
           chatHistory = chatHistory.slice(-20);
         }
       } catch (e) {
         hideTyping();
-        addBotMessage('Lo siento, ocurrió un error de conexión. ¿Puedes intentar de nuevo?');
+        addBotMessage(e?.message || 'Lo siento, ocurrió un error de conexión. ¿Puedes intentar de nuevo?');
+        renderRemainingQuickActions();
+      } finally {
+        isSending = false;
+        if (!sessionClosedFlag) {
+          input.disabled = false;
+          sendBtn.disabled = false;
+        }
       }
     }
 
     toggleBtn.addEventListener('click', toggle);
     chatLabel.addEventListener('click', toggle);
     closeBtn.addEventListener('click', toggle);
+    backdrop.addEventListener('click', toggle);
     newChatBtn.addEventListener('click', resetSession);
     sendBtn.addEventListener('click', sendMessage);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendMessage(); });
-
-    if ('visualViewport' in window) {
-      let prevHeight = window.visualViewport.height;
-      window.visualViewport.addEventListener('resize', () => {
-        const diff = prevHeight - window.visualViewport.height;
-        if (Math.abs(diff) > 50 && window.innerWidth < 768) {
-          if (diff > 0) {
-            document.documentElement.style.setProperty('--keyboard-height', diff + 'px');
-            chatWindow.classList.add('keyboard-open');
-          } else {
-            chatWindow.classList.remove('keyboard-open');
-          }
-        }
-        prevHeight = window.visualViewport.height;
-      });
-    }
-
-    input.addEventListener('blur', () => {
-      chatWindow.classList.remove('keyboard-open');
+    input.addEventListener('input', resizeInput);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
     });
+    bindQuickActions();
   })();
 </script>
