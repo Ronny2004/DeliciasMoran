@@ -684,11 +684,10 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       </button>
     </div>
     <p class="chat-security-note">
-      No escribas datos personales en el chat; para eso usa el formulario de reserva.
-      Las consultas generales son procesadas por Gemini con almacenamiento desactivado.<br>
-      Protegido por Cloudflare Turnstile:
+      Tu información se maneja de forma confidencial.<br>
+      Protegido por Turnstile ·
       <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Privacidad</a>
-      y
+      ·
       <a href="https://www.cloudflare.com/website-terms/" target="_blank" rel="noopener noreferrer">Términos</a>.
     </p>
     <div class="session-closed" id="session-closed" hidden>
@@ -1019,7 +1018,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
         return;
       }
 
-      addBotMessage('Completa este formulario seguro. Tus datos se enviarán directamente al restaurante y <strong>no se compartirán con Gemini</strong>.');
+      addBotMessage('¡Claro! Completa tus datos y enviaremos tu solicitud al restaurante.');
       const form = document.createElement('div');
       form.className = 'reservation-form';
       form.innerHTML = `
@@ -1053,7 +1052,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
             <label for="reservation-notes">Notas (opcional)</label>
             <textarea id="reservation-notes" name="notes" maxlength="300"></textarea>
           </div>
-          <p class="reservation-privacy">🔒 Estos datos van directamente al restaurante mediante Telegram. No se envían a Gemini ni se guardan en el historial de la IA.</p>
+          <p class="reservation-privacy">🔒 Tu información será utilizada únicamente para gestionar tu reserva.</p>
           <button class="confirm-btn" type="submit">✅ Enviar reserva</button>
           <div id="reservation-status" aria-live="polite"></div>
         </form>
@@ -1133,7 +1132,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
         return;
       }
       if (mayContainPersonalData(text)) {
-        addBotMessage('🔒 Para proteger tu privacidad, no envío datos personales a Gemini. Si deseas reservar, utiliza el formulario seguro.');
+        addBotMessage('🔒 Por tu seguridad, comparte tus datos únicamente en el formulario de reserva.');
         openReservationForm();
         renderRemainingQuickActions();
         return;
