@@ -448,6 +448,45 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
     pointer-events: none;
     transform: translateZ(0) translateX(10px);
   }
+  .reservation-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .reservation-field { min-width: 0; }
+  .reservation-field.full { grid-column: 1 / -1; }
+  .reservation-field label {
+    display: block;
+    margin-bottom: 4px;
+    color: #5d4037;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .reservation-field input,
+  .reservation-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid #d9c9b5;
+    border-radius: 8px;
+    padding: 9px 10px;
+    background: #fffdf9;
+    color: #2f4f4f;
+    font: 13px 'Inter', sans-serif;
+  }
+  .reservation-field textarea { min-height: 60px; resize: vertical; }
+  .reservation-field input:focus,
+  .reservation-field textarea:focus {
+    border-color: #e64a19;
+    outline: 2px solid rgba(230, 74, 25, 0.14);
+  }
+  .reservation-privacy {
+    grid-column: 1 / -1;
+    padding: 8px;
+    border-radius: 8px;
+    background: #f5f0e8;
+    line-height: 1.4;
+  }
 
   .chat-backdrop {
     display: none;
@@ -560,7 +599,9 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
     .chat-input-area { padding: 10px 12px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0)); }
     .chat-input-area textarea { font-size: 16px; padding: 11px 16px; }
     .chat-send-btn { width: 44px; height: 44px; }
-    .reservation-form { padding: 12px; }
+    .reservation-form { padding: 12px; width: 100%; }
+    .reservation-fields { grid-template-columns: 1fr; }
+    .reservation-field.full, .reservation-privacy { grid-column: 1; }
     .reservation-form .confirm-btn { padding: 12px; font-size: 15px; }
   }
   @media (max-width: 480px) {
@@ -643,6 +684,8 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       </button>
     </div>
     <p class="chat-security-note">
+      No escribas datos personales en el chat; para eso usa el formulario de reserva.
+      Las consultas generales son procesadas por Gemini con almacenamiento desactivado.<br>
       Protegido por Cloudflare Turnstile:
       <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Privacidad</a>
       y
@@ -676,7 +719,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
     ];
 
     let isOpen = false;
-    let chatHistory = [];
+    let safeContext = [];
     let sessionClosedFlag = false;
     let selectedQuickActions = new Set();
     let turnstileWidgetId = null;
@@ -713,7 +756,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
 
     function resetSession() {
       sessionClosedFlag = false;
-      chatHistory = [];
+      safeContext = [];
       selectedQuickActions = new Set();
       input.disabled = false;
       sendBtn.disabled = false;
@@ -815,6 +858,13 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       messages.querySelectorAll('.quick-action').forEach((button) => {
         button.addEventListener('click', () => {
           selectedQuickActions.add(button.dataset.action);
+          if (button.dataset.action === 'reservation') {
+            addUserMessage(button.dataset.message || 'Quiero hacer una reserva');
+            messages.querySelector('.quick-actions')?.remove();
+            openReservationForm();
+            renderRemainingQuickActions();
+            return;
+          }
           input.value = button.dataset.message || '';
           resizeInput();
           sendMessage();
@@ -936,44 +986,107 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       if (el) el.remove();
     }
 
-    function extractReservationJson(text) {
-      const match = text.match(/\{[\s\S]*"_type"\s*:\s*"reservation"[\s\S]*\}/);
-      if (match) {
-        try { return JSON.parse(match[0]); } catch {}
-      }
-      return null;
+    function getEcuadorDate(offsetDays = 0) {
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Guayaquil',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).formatToParts(new Date());
+      const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+      const date = new Date(`${values.year}-${values.month}-${values.day}T12:00:00-05:00`);
+      date.setDate(date.getDate() + offsetDays);
+      return date.toISOString().slice(0, 10);
     }
 
-    function showReservationForm(data) {
-      const escapeHtml = (value) => String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    function isReservationIntent(text) {
+      return /\b(reserv(?:a|ar|ación|aciones)|apartar\s+(?:una\s+)?mesa|mesa\s+para\s+\d+)\b/i.test(text);
+    }
 
+    function mayContainPersonalData(text) {
+      return [
+        /[\w.%+-]+@[\w.-]+\.[a-z]{2,}/i,
+        /(?:\+?\d[\s().-]*){7,}/,
+        /\b(?:cédula|pasaporte|identificación|ruc)\b/i,
+        /\b(?:me\s+llamo|mi\s+nombre\s+es)\s+[a-záéíóúñü]{2,}(?:\s+[a-záéíóúñü]{2,}){0,3}\b/i,
+        /\b(?:mi\s+dirección|vivo\s+en|domicilio)\b/i,
+      ].some((pattern) => pattern.test(text));
+    }
+
+    function openReservationForm() {
+      if (messages.querySelector('.reservation-form')) {
+        messages.querySelector('.reservation-form').scrollIntoView({ behavior: 'smooth', block: 'end' });
+        return;
+      }
+
+      addBotMessage('Completa este formulario seguro. Tus datos se enviarán directamente al restaurante y <strong>no se compartirán con Gemini</strong>.');
       const form = document.createElement('div');
       form.className = 'reservation-form';
       form.innerHTML = `
-        <h4>📋 Confirmar Reserva</h4>
-        <p><strong>Nombre:</strong> ${escapeHtml(data.name)}</p>
-        <p><strong>Teléfono:</strong> ${escapeHtml(data.phone)}</p>
-        <p><strong>Fecha:</strong> ${escapeHtml(data.date)}</p>
-        <p><strong>Hora:</strong> ${escapeHtml(data.time)}</p>
-        <p><strong>Personas:</strong> ${escapeHtml(data.people)}</p>
-        ${data.dishes ? `<p><strong>Platos:</strong> ${escapeHtml(data.dishes)}</p>` : ''}
-        ${data.notes ? `<p><strong>Notas:</strong> ${escapeHtml(data.notes)}</p>` : ''}
-        <button class="confirm-btn" id="confirm-reservation">✅ Confirmar Reserva</button>
-        <div id="reservation-status"></div>
+        <h4>📋 Reserva directa con el restaurante</h4>
+        <form class="reservation-fields" id="reservation-data-form">
+          <div class="reservation-field full">
+            <label for="reservation-name">Nombre completo *</label>
+            <input id="reservation-name" name="name" type="text" autocomplete="name" minlength="2" maxlength="80" required>
+          </div>
+          <div class="reservation-field full">
+            <label for="reservation-phone">Teléfono *</label>
+            <input id="reservation-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" minlength="7" maxlength="24" required>
+          </div>
+          <div class="reservation-field">
+            <label for="reservation-date">Fecha *</label>
+            <input id="reservation-date" name="date" type="date" min="${getEcuadorDate()}" max="${getEcuadorDate(365)}" required>
+          </div>
+          <div class="reservation-field">
+            <label for="reservation-time">Hora *</label>
+            <input id="reservation-time" name="time" type="time" min="15:00" max="22:00" step="900" required>
+          </div>
+          <div class="reservation-field">
+            <label for="reservation-people">Personas *</label>
+            <input id="reservation-people" name="people" type="number" inputmode="numeric" min="1" max="20" step="1" required>
+          </div>
+          <div class="reservation-field full">
+            <label for="reservation-dishes">Platos (opcional)</label>
+            <textarea id="reservation-dishes" name="dishes" maxlength="300"></textarea>
+          </div>
+          <div class="reservation-field full">
+            <label for="reservation-notes">Notas (opcional)</label>
+            <textarea id="reservation-notes" name="notes" maxlength="300"></textarea>
+          </div>
+          <p class="reservation-privacy">🔒 Estos datos van directamente al restaurante mediante Telegram. No se envían a Gemini ni se guardan en el historial de la IA.</p>
+          <button class="confirm-btn" type="submit">✅ Enviar reserva</button>
+          <div id="reservation-status" aria-live="polite"></div>
+        </form>
       `;
       messages.appendChild(form);
       scrollToBottom();
 
-      form.querySelector('#confirm-reservation').addEventListener('click', async () => {
-        const btn = form.querySelector('#confirm-reservation');
+      form.querySelector('#reservation-data-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const dataForm = event.currentTarget;
+        if (!dataForm.reportValidity()) return;
+        const fields = new FormData(dataForm);
+        const data = {
+          name: fields.get('name'),
+          phone: fields.get('phone'),
+          date: fields.get('date'),
+          time: fields.get('time'),
+          people: Number(fields.get('people')),
+          dishes: fields.get('dishes') || undefined,
+          notes: fields.get('notes') || undefined,
+        };
+        const selectedDate = new Date(`${data.date}T12:00:00-05:00`);
+        if (selectedDate.getUTCDay() === 0) {
+          const status = form.querySelector('#reservation-status');
+          status.className = 'error-msg';
+          status.textContent = '❌ Los domingos estamos cerrados. Elige una fecha de lunes a sábado.';
+          return;
+        }
+
+        const btn = form.querySelector('.confirm-btn');
         const status = form.querySelector('#reservation-status');
         btn.disabled = true;
-        btn.textContent = 'Procesando...';
+        btn.textContent = 'Enviando...';
 
         try {
           const turnstileToken = await getTurnstileToken();
@@ -989,7 +1102,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
             status.textContent = '✅ ' + result.message;
             btn.remove();
             addBotMessage('¡Reserva confirmada! Nos vemos pronto. 🐮🔥');
-            chatHistory.push({ role: 'model', parts: [{ text: '¡Reserva confirmada! Nos vemos pronto.' }] });
+            dataForm.reset();
             closeSession();
           } else {
             throw new Error(result.error || 'Error al procesar');
@@ -998,7 +1111,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
           status.className = 'error-msg';
           status.textContent = '❌ Error: ' + e.message;
           btn.disabled = false;
-          btn.textContent = '✅ Confirmar Reserva';
+          btn.textContent = '✅ Enviar reserva';
         }
       });
     }
@@ -1008,60 +1121,78 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       const text = input.value.trim();
       if (!text) return;
 
-      isSending = true;
-      input.disabled = true;
-      sendBtn.disabled = true;
-      const historyBeforeMessage = [...chatHistory];
       input.value = '';
       resizeInput();
       addUserMessage(text);
-      chatHistory.push({ role: 'user', parts: [{ text }] });
       messages.querySelector('.quick-actions')?.remove();
+
+      if (isReservationIntent(text)) {
+        selectedQuickActions.add('reservation');
+        openReservationForm();
+        renderRemainingQuickActions();
+        return;
+      }
+      if (mayContainPersonalData(text)) {
+        addBotMessage('🔒 Para proteger tu privacidad, no envío datos personales a Gemini. Si deseas reservar, utiliza el formulario seguro.');
+        openReservationForm();
+        renderRemainingQuickActions();
+        return;
+      }
+
+      isSending = true;
+      input.disabled = true;
+      sendBtn.disabled = true;
+      const contextBeforeMessage = [...safeContext];
       showTyping();
 
       try {
         const turnstileToken = await getTurnstileToken();
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: text,
-            history: historyBeforeMessage,
-            turnstileToken,
-          }),
-        });
+        const controller = new AbortController();
+        const requestTimeout = window.setTimeout(() => controller.abort(), 32_000);
+        let res;
+        try {
+          res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: text,
+              context: contextBeforeMessage,
+              turnstileToken,
+            }),
+            signal: controller.signal,
+          });
+        } finally {
+          window.clearTimeout(requestTimeout);
+        }
 
         hideTyping();
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           addBotMessage(err.error || 'Lo siento, tuve un problema. ¿Puedes intentar de nuevo?');
+          if (err.action === 'open_reservation') openReservationForm();
           renderRemainingQuickActions();
           return;
         }
 
         const data = await res.json();
         const reply = data.response;
+        addBotMessage(parseMarkdown(reply));
+        if (data.action === 'open_reservation') openReservationForm();
 
-        const reservationData = extractReservationJson(reply);
-
-        if (reservationData && reservationData.data) {
-          const summary = reservationData.summary || 'Aquí tienes el resumen de tu reserva:';
-          addBotMessage(parseMarkdown(summary));
-          showReservationForm(reservationData.data);
-          chatHistory.push({ role: 'model', parts: [{ text: summary }] });
-        } else {
-          addBotMessage(parseMarkdown(reply));
-          chatHistory.push({ role: 'model', parts: [{ text: reply }] });
-        }
+        // Solo se conserva localmente el último intercambio comercial no sensible.
+        safeContext = mayContainPersonalData(reply)
+          ? []
+          : [
+              { role: 'user', text },
+              { role: 'model', text: reply.slice(0, 1000) },
+            ];
         renderRemainingQuickActions();
-
-        if (chatHistory.length > 20) {
-          chatHistory = chatHistory.slice(-20);
-        }
       } catch (e) {
         hideTyping();
-        addBotMessage(e?.message || 'Lo siento, ocurrió un error de conexión. ¿Puedes intentar de nuevo?');
+        addBotMessage(e?.name === 'AbortError'
+          ? 'Vaco tardó demasiado en responder. Intenta nuevamente.'
+          : (e?.message || 'Lo siento, ocurrió un error de conexión. ¿Puedes intentar de nuevo?'));
         renderRemainingQuickActions();
       } finally {
         isSending = false;

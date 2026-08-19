@@ -190,8 +190,7 @@ export const POST: APIRoute = async ({ request }) => {
     });
 
     if (!ownerRes.ok) {
-      const errorBody = await ownerRes.json().catch(() => ({}));
-      console.error('Failed to notify owner:', errorBody);
+      console.error('Reservation notification failed', { status: ownerRes.status });
       return jsonResponse(
         {
           success: false,
@@ -206,7 +205,9 @@ export const POST: APIRoute = async ({ request }) => {
       message: '¡Reserva confirmada! El restaurante recibió tus datos. Nos vemos pronto.',
     });
   } catch (error) {
-    console.error('Reservation API error:', error);
+    console.error('Reservation request failed', {
+      timeout: error instanceof Error && error.name === 'TimeoutError',
+    });
     return jsonResponse(
       {
         success: false,

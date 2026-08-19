@@ -6,7 +6,7 @@ Sitio web oficial del restaurante **Las Delicias de Morán**, cocina tradicional
 
 - **Menú interactivo** — Modal con estilo pergaminos, platos expandibles con ingredientes y precios
 - **Chat con Gemini** — Asistente virtual "Vaco 🐮" que conoce el menú y asesora a los clientes
-- **Sistema de reservas** — El chat recolecta datos y notifica al dueño por Telegram
+- **Reservas privadas** — Un formulario determinista envía los datos directamente al restaurante por Telegram; Gemini no recibe datos personales
 - **Protección de API** — Turnstile, validación de origen, límites por IP y tamaños máximos
 - **Entrega confiable** — Una reserva solo se confirma cuando Telegram acepta la notificación
 - **Mapa interactivo** — Ubicación con Google Maps embebido
@@ -163,12 +163,23 @@ Hacer clic en **"Deploy"**. Vercel:
 - Chat: máximo 12 solicitudes por minuto por IP.
 - Reservas: máximo 3 intentos cada 10 minutos por IP.
 - Mensajes: máximo 500 caracteres.
-- Historial: máximo 20 turnos y 12.000 caracteres.
+- Privacidad de IA: Interactions API con `store: false`; no se crean conversaciones persistentes en Google.
+- Contexto: solo se reenvía el último intercambio comercial no sensible (máximo 2 elementos y 1.500 caracteres).
+- Datos personales: bloqueo preventivo en navegador y servidor antes de cualquier llamada a Gemini.
+- Reservas: nombre, teléfono, fecha y detalles se procesan únicamente en `/api/reservation` y se envían a Telegram.
 - Turnstile validado en el servidor en cada solicitud.
 - Comprobación del hostname, acción y origen.
 - Reservas validadas por fecha, horario, teléfono y número de personas.
 - Respuestas con `Cache-Control: no-store`.
 - Timeouts para Turnstile y Telegram.
+- Timeout de 25 segundos para Gemini y 32 segundos en el navegador.
+- Logs operativos sin mensajes, nombres, teléfonos, tokens ni respuestas de Telegram.
+
+### Privacidad del chat y las reservas
+
+Vaco usa Gemini únicamente para consultas generales del restaurante. El formulario de reserva está separado del modelo: sus campos no forman parte del prompt ni del contexto del chat. Si una persona escribe un teléfono, correo, identificación, dirección o una presentación con nombre en el cuadro de chat, la solicitud se detiene antes de crear la llamada a Gemini.
+
+`store: false` evita almacenar objetos de conversación en la Interactions API. Google todavía procesa temporalmente las consultas generales necesarias para generar una respuesta y aplica sus términos del servicio. No deben escribirse datos personales en el cuadro de conversación; la interfaz dirige esos datos al formulario privado.
 
 El rate limiting en memoria funciona por instancia activa. Para límites globales entre todas las instancias de Vercel se requiere Redis/KV o una regla de Vercel Firewall.
 
