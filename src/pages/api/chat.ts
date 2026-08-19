@@ -26,6 +26,7 @@ interface SafeContextItem {
 }
 
 const RESERVATION_INTENT = /\b(reserv(?:a|ar|aci[oó]n|aciones)|apartar\s+(?:una\s+)?mesa|mesa\s+para\s+\d+)\b/i;
+const ORDER_INTENT = /\b(pedido|pedir|ordenar|orden|domicilio|delivery)\b/i;
 const PERSONAL_DATA_PATTERNS = [
   /[\w.%+-]+@[\w.-]+\.[a-z]{2,}/i,
   /(?:\+?\d[\s().-]*){7,}/,
@@ -114,7 +115,9 @@ export const POST: APIRoute = async ({ request }) => {
         success: false,
         code: 'PERSONAL_DATA_BLOCKED',
         error: 'Por tu seguridad, comparte tus datos únicamente en el formulario de reserva.',
-        action: RESERVATION_INTENT.test(message) ? 'open_reservation' : undefined,
+        action: RESERVATION_INTENT.test(message)
+          ? 'open_reservation'
+          : (ORDER_INTENT.test(message) ? 'open_order' : undefined),
       }, 422);
     }
 
@@ -124,6 +127,13 @@ export const POST: APIRoute = async ({ request }) => {
         success: true,
         response: '¡Claro! Completa tus datos y enviaremos tu solicitud al restaurante.',
         action: 'open_reservation',
+      });
+    }
+    if (ORDER_INTENT.test(message)) {
+      return jsonResponse({
+        success: true,
+        response: '¡Con gusto! Completa los datos de tu pedido y comparte tu ubicación para enviarlo al restaurante.',
+        action: 'open_order',
       });
     }
 

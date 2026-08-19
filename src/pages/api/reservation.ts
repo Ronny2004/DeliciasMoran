@@ -88,6 +88,11 @@ function validateReservation(value: unknown): ReservationData | null {
     return null;
   }
 
+  // Una reserva para hoy debe estar en el futuro. La zona horaria fija de
+  // Ecuador continental (UTC-5) evita depender de la región del servidor.
+  const reservationDateTime = new Date(`${date}T${time}:00-05:00`);
+  if (reservationDateTime.getTime() <= Date.now()) return null;
+
   return {
     name,
     phone,
@@ -142,6 +147,20 @@ export const POST: APIRoute = async ({ request }) => {
 
   try {
     const body = await request.json();
+    if (
+      typeof body?.date === 'string'
+      && typeof body?.time === 'string'
+      && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
+      && /^\d{2}:\d{2}$/.test(body.time)
+    ) {
+      const requestedDateTime = new Date(`${body.date}T${body.time}:00-05:00`);
+      if (!Number.isNaN(requestedDateTime.getTime()) && requestedDateTime.getTime() <= Date.now()) {
+        return jsonResponse({
+          success: false,
+          error: 'Esa fecha u hora ya pasó. Elige un horario futuro para tu reserva.',
+        }, 409);
+      }
+    }
     const data = validateReservation(body);
     if (!data) {
       return jsonResponse(
