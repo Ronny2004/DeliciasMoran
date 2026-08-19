@@ -113,7 +113,7 @@ export const POST: APIRoute = async ({ request }) => {
       return jsonResponse({
         success: false,
         code: 'PERSONAL_DATA_BLOCKED',
-        error: 'Para proteger tu privacidad, no envío datos personales a la IA. Usa el formulario seguro de reserva para compartirlos.',
+        error: 'Por tu seguridad, comparte tus datos únicamente en el formulario de reserva.',
         action: RESERVATION_INTENT.test(message) ? 'open_reservation' : undefined,
       }, 422);
     }
@@ -122,7 +122,7 @@ export const POST: APIRoute = async ({ request }) => {
     if (RESERVATION_INTENT.test(message)) {
       return jsonResponse({
         success: true,
-        response: 'Claro. Completa el formulario seguro; estos datos no se enviarán a Gemini.',
+        response: '¡Claro! Completa tus datos y enviaremos tu solicitud al restaurante.',
         action: 'open_reservation',
       });
     }
@@ -137,10 +137,14 @@ export const POST: APIRoute = async ({ request }) => {
     const apiKey = import.meta.env.GEMINI_API_KEY;
     if (!apiKey) return jsonResponse({ success: false, error: 'El asistente no está configurado temporalmente.' }, 503);
 
-    const input = [
-      ...context.map((item) => ({ role: item.role, content: item.text })),
-      { role: 'user', content: message },
-    ];
+    const recentContext = context
+      .map((item) => `${item.role === 'user' ? 'Cliente' : 'Vaco'}: ${item.text}`)
+      .join('\n');
+    // Interactions acepta texto directamente. El arreglo de objetos usado antes
+    // no coincidía con el esquema de Steps y fallaba antes de realizar la petición.
+    const input = recentContext
+      ? `Contexto reciente de la conversación:\n${recentContext}\n\nMensaje actual del cliente: ${message}`
+      : message;
     const ai = new GoogleGenAI({ apiKey });
     const geminiStartedAt = Date.now();
     const interaction = await ai.interactions.create(
