@@ -7,6 +7,7 @@ Sitio web oficial del restaurante **Las Delicias de Morán**, cocina tradicional
 - **Menú interactivo** — Modal con estilo pergaminos, platos expandibles con ingredientes y precios
 - **Chat con Gemini** — Asistente virtual "Vaco 🐮" que conoce el menú y asesora a los clientes
 - **Reservas privadas** — Un formulario determinista envía los datos directamente al restaurante por Telegram; Gemini no recibe datos personales
+- **Pedidos con ubicación** — El cliente comparte su ubicación actual y el restaurante recibe un enlace directo de Google Maps por Telegram
 - **Protección de API** — Turnstile, validación de origen, límites por IP y tamaños máximos
 - **Entrega confiable** — Una reserva solo se confirma cuando Telegram acepta la notificación
 - **Mapa interactivo** — Ubicación con Google Maps embebido
@@ -45,7 +46,8 @@ src/
 │   ├── index.astro         — Página principal
 │   └── api/
 │       ├── chat.ts         — Proxy a Gemini API
-│       └── reservation.ts  — Notificaciones Telegram
+│       ├── reservation.ts  — Reservas y notificaciones Telegram
+│       └── order.ts        — Pedidos, geolocalización y notificaciones Telegram
 └── styles/
     └── global.css          — Variables CSS, animaciones, utilidades
 ```
@@ -155,13 +157,15 @@ Hacer clic en **"Deploy"**. Vercel:
 1. Abrir la URL generada
 2. Probar el chat (el botón flotante de la esquina inferior derecha)
 3. Hacer una prueba de reserva
-4. Verificar que llega el mensaje de Telegram al dueño
-5. Confirmar que el cliente recibe éxito únicamente cuando Telegram responde correctamente
+4. Hacer una prueba de pedido y aceptar el permiso de ubicación
+5. Verificar que llegan a Telegram la reserva y el pedido con su enlace de Google Maps
+6. Confirmar que el cliente recibe éxito únicamente cuando Telegram responde correctamente
 
 ## Protecciones implementadas
 
 - Chat: máximo 12 solicitudes por minuto por IP.
 - Reservas: máximo 3 intentos cada 10 minutos por IP.
+- Pedidos: máximo 5 intentos cada 10 minutos por IP.
 - Mensajes: máximo 500 caracteres.
 - Privacidad de IA: Interactions API con `store: false`; no se crean conversaciones persistentes en Google.
 - Contexto: solo se reenvía el último intercambio comercial no sensible (máximo 2 elementos y 1.500 caracteres).
@@ -170,6 +174,9 @@ Hacer clic en **"Deploy"**. Vercel:
 - Turnstile validado en el servidor en cada solicitud.
 - Comprobación del hostname, acción y origen.
 - Reservas validadas por fecha, horario, teléfono y número de personas.
+- Las reservas para hoy deben tener una hora futura; la validación usa la zona `America/Guayaquil` tanto en la interfaz como en el servidor.
+- Los pedidos solo se reciben de lunes a sábado, de 3:00 PM a 10:00 PM.
+- La ubicación del pedido se valida como coordenadas y Telegram recibe una URL de Google Maps.
 - Respuestas con `Cache-Control: no-store`.
 - Timeouts para Turnstile y Telegram.
 - Timeout de 25 segundos para Gemini y 32 segundos en el navegador.
@@ -177,7 +184,7 @@ Hacer clic en **"Deploy"**. Vercel:
 
 ### Privacidad del chat y las reservas
 
-Vaco usa Gemini únicamente para consultas generales del restaurante. El formulario de reserva está separado del modelo: sus campos no forman parte del prompt ni del contexto del chat. Si una persona escribe un teléfono, correo, identificación, dirección o una presentación con nombre en el cuadro de chat, la solicitud se detiene antes de crear la llamada a Gemini.
+Vaco usa Gemini únicamente para consultas generales del restaurante. Los formularios de reserva y pedido están separados del modelo: sus campos y la geolocalización no forman parte del prompt ni del contexto del chat. Si una persona escribe un teléfono, correo, identificación, dirección o una presentación con nombre en el cuadro de chat, la solicitud se detiene antes de crear la llamada a Gemini.
 
 `store: false` evita almacenar objetos de conversación en la Interactions API. Google todavía procesa temporalmente las consultas generales necesarias para generar una respuesta y aplica sus términos del servicio. No deben escribirse datos personales en el cuadro de conversación; la interfaz dirige esos datos al formulario privado.
 

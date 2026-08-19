@@ -480,6 +480,25 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
     border-color: #e64a19;
     outline: 2px solid rgba(230, 74, 25, 0.14);
   }
+  .location-btn {
+    width: 100%;
+    border: 1px solid #d9c9b5;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fff8ed;
+    color: #8B4513;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .location-btn:hover { border-color: #e64a19; background: #fff2df; }
+  .location-btn:disabled { cursor: wait; opacity: 0.7; }
+  .location-status {
+    margin-top: 5px !important;
+    font-size: 12px !important;
+  }
+  .location-status.ready { color: #2e7d32; }
+  .location-status.error { color: #c62828; }
   .reservation-privacy {
     grid-column: 1 / -1;
     padding: 8px;
@@ -672,6 +691,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
         <button class="quick-action" type="button" data-action="menu" data-message="Quiero ver el menú">🍽️ Ver menú</button>
         <button class="quick-action" type="button" data-action="schedule" data-message="¿Cuál es el horario del restaurante?">🕒 Horarios</button>
         <button class="quick-action" type="button" data-action="reservation" data-message="Quiero hacer una reserva">📅 Hacer una reserva</button>
+        <button class="quick-action" type="button" data-action="order" data-message="Quiero hacer un pedido">🛵 Hacer un pedido</button>
       </div>
     </div>
 
@@ -691,7 +711,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       <a href="https://www.cloudflare.com/website-terms/" target="_blank" rel="noopener noreferrer">Términos</a>.
     </p>
     <div class="session-closed" id="session-closed" hidden>
-      <p>✅ Reserva confirmada. Sesión cerrada.</p>
+      <p id="session-closed-message">✅ Solicitud enviada. Sesión cerrada.</p>
       <button class="new-chat-btn" id="new-chat-btn">💬 Nueva consulta</button>
     </div>
   </div>
@@ -707,6 +727,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
     const sendBtn = document.getElementById('chat-send-btn');
     const inputArea = document.getElementById('chat-input-area');
     const sessionClosed = document.getElementById('session-closed');
+    const sessionClosedMessage = document.getElementById('session-closed-message');
     const newChatBtn = document.getElementById('new-chat-btn');
     const chatLabel = document.getElementById('chat-label');
     const backdrop = document.getElementById('chat-backdrop');
@@ -715,6 +736,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       { id: 'menu', label: '🍽️ Ver menú', message: 'Quiero ver el menú' },
       { id: 'schedule', label: '🕒 Horarios', message: '¿Cuál es el horario del restaurante?' },
       { id: 'reservation', label: '📅 Hacer una reserva', message: 'Quiero hacer una reserva' },
+      { id: 'order', label: '🛵 Hacer un pedido', message: 'Quiero hacer un pedido' },
     ];
 
     let isOpen = false;
@@ -743,8 +765,9 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       messages.scrollTop = messages.scrollHeight;
     }
 
-    function closeSession() {
+    function closeSession(message = '✅ Solicitud enviada. Sesión cerrada.') {
       sessionClosedFlag = true;
+      sessionClosedMessage.textContent = message;
       messages.querySelector('.quick-actions')?.remove();
       input.disabled = true;
       sendBtn.disabled = true;
@@ -861,6 +884,13 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
             addUserMessage(button.dataset.message || 'Quiero hacer una reserva');
             messages.querySelector('.quick-actions')?.remove();
             openReservationForm();
+            renderRemainingQuickActions();
+            return;
+          }
+          if (button.dataset.action === 'order') {
+            addUserMessage(button.dataset.message || 'Quiero hacer un pedido');
+            messages.querySelector('.quick-actions')?.remove();
+            openOrderForm();
             renderRemainingQuickActions();
             return;
           }
@@ -998,8 +1028,44 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       return date.toISOString().slice(0, 10);
     }
 
+    function getEcuadorMinutesNow() {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Guayaquil',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(new Date());
+      const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+      return Number(values.hour) * 60 + Number(values.minute);
+    }
+
+    function updateReservationTimeLimit(dateInput, timeInput) {
+      timeInput.setCustomValidity('');
+      if (dateInput.value !== getEcuadorDate()) {
+        timeInput.min = '15:00';
+        return;
+      }
+
+      const nextQuarter = Math.ceil((getEcuadorMinutesNow() + 1) / 15) * 15;
+      if (nextQuarter > 22 * 60) {
+        timeInput.min = '22:00';
+        timeInput.setCustomValidity('Ya no hay horarios disponibles para hoy. Elige otro día.');
+        return;
+      }
+      const hours = String(Math.floor(nextQuarter / 60)).padStart(2, '0');
+      const minutes = String(nextQuarter % 60).padStart(2, '0');
+      timeInput.min = `${hours}:${minutes}`;
+      if (timeInput.value && timeInput.value < timeInput.min) {
+        timeInput.setCustomValidity('Elige una hora que todavía no haya pasado.');
+      }
+    }
+
     function isReservationIntent(text) {
       return /\b(reserv(?:a|ar|ación|aciones)|apartar\s+(?:una\s+)?mesa|mesa\s+para\s+\d+)\b/i.test(text);
+    }
+
+    function isOrderIntent(text) {
+      return /\b(pedido|pedir|ordenar|orden|domicilio|delivery)\b/i.test(text);
     }
 
     function mayContainPersonalData(text) {
@@ -1013,14 +1079,14 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
     }
 
     function openReservationForm() {
-      if (messages.querySelector('.reservation-form')) {
-        messages.querySelector('.reservation-form').scrollIntoView({ behavior: 'smooth', block: 'end' });
+      if (messages.querySelector('.reservation-booking-form')) {
+        messages.querySelector('.reservation-booking-form').scrollIntoView({ behavior: 'smooth', block: 'end' });
         return;
       }
 
       addBotMessage('¡Claro! Completa tus datos y enviaremos tu solicitud al restaurante.');
       const form = document.createElement('div');
-      form.className = 'reservation-form';
+      form.className = 'reservation-form reservation-booking-form';
       form.innerHTML = `
         <h4>📋 Reserva directa con el restaurante</h4>
         <form class="reservation-fields" id="reservation-data-form">
@@ -1060,9 +1126,20 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
       messages.appendChild(form);
       scrollToBottom();
 
+      const reservationDateInput = form.querySelector('#reservation-date');
+      const reservationTimeInput = form.querySelector('#reservation-time');
+      reservationDateInput.addEventListener('change', () => {
+        updateReservationTimeLimit(reservationDateInput, reservationTimeInput);
+        reservationTimeInput.reportValidity();
+      });
+      reservationTimeInput.addEventListener('input', () => {
+        updateReservationTimeLimit(reservationDateInput, reservationTimeInput);
+      });
+
       form.querySelector('#reservation-data-form').addEventListener('submit', async (event) => {
         event.preventDefault();
         const dataForm = event.currentTarget;
+        updateReservationTimeLimit(reservationDateInput, reservationTimeInput);
         if (!dataForm.reportValidity()) return;
         const fields = new FormData(dataForm);
         const data = {
@@ -1102,7 +1179,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
             btn.remove();
             addBotMessage('¡Reserva confirmada! Nos vemos pronto. 🐮🔥');
             dataForm.reset();
-            closeSession();
+            closeSession('✅ Reserva confirmada. Sesión cerrada.');
           } else {
             throw new Error(result.error || 'Error al procesar');
           }
@@ -1111,6 +1188,138 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
           status.textContent = '❌ Error: ' + e.message;
           btn.disabled = false;
           btn.textContent = '✅ Enviar reserva';
+        }
+      });
+    }
+
+    function openOrderForm() {
+      if (messages.querySelector('.order-form')) {
+        messages.querySelector('.order-form').scrollIntoView({ behavior: 'smooth', block: 'end' });
+        return;
+      }
+
+      addBotMessage('¡Con gusto! Cuéntanos qué deseas y comparte tu ubicación para enviar el pedido al restaurante.');
+      const form = document.createElement('div');
+      form.className = 'reservation-form order-form';
+      form.innerHTML = `
+        <h4>🛵 Enviar pedido</h4>
+        <form class="reservation-fields" id="order-data-form">
+          <div class="reservation-field full">
+            <label for="order-name">Nombre completo *</label>
+            <input id="order-name" name="name" type="text" autocomplete="name" minlength="2" maxlength="80" required>
+          </div>
+          <div class="reservation-field full">
+            <label for="order-phone">Teléfono *</label>
+            <input id="order-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" minlength="7" maxlength="24" required>
+          </div>
+          <div class="reservation-field full">
+            <label for="order-items">¿Qué deseas pedir? *</label>
+            <textarea id="order-items" name="items" maxlength="600" placeholder="Ej.: 2 tripas asadas y 1 papas con cuero" required></textarea>
+          </div>
+          <div class="reservation-field full">
+            <label for="order-notes">Indicaciones adicionales (opcional)</label>
+            <textarea id="order-notes" name="notes" maxlength="300" placeholder="Ej.: sin picante"></textarea>
+          </div>
+          <div class="reservation-field full">
+            <label>Ubicación de entrega *</label>
+            <button class="location-btn" type="button" id="get-order-location">📍 Usar mi ubicación actual</button>
+            <p class="location-status" id="order-location-status" aria-live="polite">Aún no has compartido tu ubicación.</p>
+          </div>
+          <p class="reservation-privacy">🔒 Tu información será utilizada únicamente para gestionar tu pedido.</p>
+          <button class="confirm-btn" type="submit">✅ Enviar pedido</button>
+          <div id="order-status" aria-live="polite"></div>
+        </form>
+      `;
+      messages.appendChild(form);
+      scrollToBottom();
+
+      let coordinates = null;
+      const locationButton = form.querySelector('#get-order-location');
+      const locationStatus = form.querySelector('#order-location-status');
+      locationButton.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          locationStatus.className = 'location-status error';
+          locationStatus.textContent = 'Tu navegador no permite obtener la ubicación.';
+          return;
+        }
+
+        locationButton.disabled = true;
+        locationButton.textContent = 'Obteniendo ubicación...';
+        locationStatus.className = 'location-status';
+        locationStatus.textContent = 'Acepta el permiso de ubicación en tu navegador.';
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            coordinates = {
+              latitude: Number(position.coords.latitude.toFixed(6)),
+              longitude: Number(position.coords.longitude.toFixed(6)),
+            };
+            locationButton.disabled = false;
+            locationButton.textContent = '📍 Actualizar mi ubicación';
+            locationStatus.className = 'location-status ready';
+            locationStatus.textContent = '✅ Ubicación lista para enviar.';
+          },
+          (error) => {
+            const messagesByCode = {
+              1: 'Activa el permiso de ubicación para continuar.',
+              2: 'No pudimos determinar tu ubicación. Intenta nuevamente.',
+              3: 'La ubicación tardó demasiado. Intenta nuevamente.',
+            };
+            coordinates = null;
+            locationButton.disabled = false;
+            locationButton.textContent = '📍 Usar mi ubicación actual';
+            locationStatus.className = 'location-status error';
+            locationStatus.textContent = messagesByCode[error.code] || 'No pudimos obtener tu ubicación.';
+          },
+          { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+        );
+      });
+
+      form.querySelector('#order-data-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const dataForm = event.currentTarget;
+        const status = form.querySelector('#order-status');
+        if (!dataForm.reportValidity()) return;
+        if (!coordinates) {
+          locationStatus.className = 'location-status error';
+          locationStatus.textContent = 'Comparte tu ubicación para poder enviar el pedido.';
+          locationButton.focus();
+          return;
+        }
+
+        const fields = new FormData(dataForm);
+        const data = {
+          name: fields.get('name'),
+          phone: fields.get('phone'),
+          items: fields.get('items'),
+          notes: fields.get('notes') || undefined,
+          ...coordinates,
+        };
+        const btn = form.querySelector('.confirm-btn');
+        btn.disabled = true;
+        btn.textContent = 'Enviando...';
+
+        try {
+          const turnstileToken = await getTurnstileToken();
+          const res = await fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...data, turnstileToken }),
+          });
+          const result = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(result.error || 'No pudimos enviar el pedido.');
+
+          status.className = 'success-msg';
+          status.textContent = '✅ ' + result.message;
+          btn.remove();
+          dataForm.reset();
+          coordinates = null;
+          addBotMessage('¡Pedido enviado! El restaurante recibió tu solicitud. 🛵');
+          closeSession('✅ Pedido enviado. Sesión cerrada.');
+        } catch (error) {
+          status.className = 'error-msg';
+          status.textContent = '❌ ' + (error?.message || 'No pudimos enviar el pedido.');
+          btn.disabled = false;
+          btn.textContent = '✅ Enviar pedido';
         }
       });
     }
@@ -1131,9 +1340,16 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
         renderRemainingQuickActions();
         return;
       }
+      if (isOrderIntent(text)) {
+        selectedQuickActions.add('order');
+        openOrderForm();
+        renderRemainingQuickActions();
+        return;
+      }
       if (mayContainPersonalData(text)) {
         addBotMessage('🔒 Por tu seguridad, comparte tus datos únicamente en el formulario de reserva.');
-        openReservationForm();
+        if (isOrderIntent(text)) openOrderForm();
+        else openReservationForm();
         renderRemainingQuickActions();
         return;
       }
@@ -1170,6 +1386,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
           const err = await res.json().catch(() => ({}));
           addBotMessage(err.error || 'Lo siento, tuve un problema. ¿Puedes intentar de nuevo?');
           if (err.action === 'open_reservation') openReservationForm();
+          if (err.action === 'open_order') openOrderForm();
           renderRemainingQuickActions();
           return;
         }
@@ -1178,6 +1395,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || '';
         const reply = data.response;
         addBotMessage(parseMarkdown(reply));
         if (data.action === 'open_reservation') openReservationForm();
+        if (data.action === 'open_order') openOrderForm();
 
         // Solo se conserva localmente el último intercambio comercial no sensible.
         safeContext = mayContainPersonalData(reply)
